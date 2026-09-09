@@ -531,14 +531,9 @@
         let currentAuth = JSON.parse(localStorage.getItem('hbs_auth')) || null;
 
         let hotels = JSON.parse(localStorage.getItem('hbs_hotels')) || [
-            { id: 'h1', name: 'Khách Sạn Biển Đà Nẵng' },
-            { id: 'h2', name: 'Homestay Trung Tâm' }
         ];
 
         let rooms = JSON.parse(localStorage.getItem('hbs_rooms')) || [
-            { id: 'r1', hotelId: 'h1', name: 'Phòng VIP 101', color: '#2563eb' },
-            { id: 'r2', hotelId: 'h1', name: 'Phòng Standard 102', color: '#059669' },
-            { id: 'r3', hotelId: 'h2', name: 'Căn Hộ Studio 01', color: '#d97706' }
         ];
 
         let statuses = JSON.parse(localStorage.getItem('hbs_statuses')) || [
