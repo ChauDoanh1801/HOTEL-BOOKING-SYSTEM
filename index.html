@@ -18,6 +18,9 @@
         .past-day { background-color: #f1f5f9 !important; color: #94a3b8; }
         .past-card { opacity: 0.55; filter: grayscale(100%); }
     </style>
+    <!-- Firebase JS SDK (v9 Compatibility) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen">
 
@@ -527,40 +530,56 @@
 
     <!-- JAVASCRIPT SYSTEM ENGINE -->
     <script>
-        // --- DATA INITIALIZATION (LOCALSTORAGE / DEFAULT) ---
-        let currentAuth = JSON.parse(localStorage.getItem('hbs_auth')) || null;
+// --- FIREBASE INITIALIZATION ---
+const firebaseConfig = {
+    apiKey: "AIzaSyDbWMGsba5yba_sahGWUJSQ2mCSCBcpjec",
+    authDomain: "booking-management-syste-dd955.firebaseapp.com",
+    databaseURL: "https://booking-management-syste-dd955-default-rtdb.firebaseio.com",
+    projectId: "booking-management-syste-dd955",
+    storageBucket: "booking-management-syste-dd955.firebasestorage.app",
+    messagingSenderId: "927068207274",
+    appId: "1:927068207274:web:bcfa626a20439e1b9e38d3"
+};
 
-        let hotels = JSON.parse(localStorage.getItem('hbs_hotels')) || [
-        ];
+// Khởi tạo Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-        let rooms = JSON.parse(localStorage.getItem('hbs_rooms')) || [
-        ];
+// Khai báo biến toàn cục
+let currentAuth = JSON.parse(localStorage.getItem('hbs_auth')) || null;
+let hotels = [];
+let rooms = [];
+let statuses = [];
+let bookings = [];
 
-        let statuses = JSON.parse(localStorage.getItem('hbs_statuses')) || [
-            'Thu tiền', 'Đã Cọc', 'Đã Thanh Toán', 'Khách Hủy'
-        ];
+// Hàm tự động đồng bộ dữ liệu Realtime từ Firebase về web
+function listenToFirebaseData() {
+    db.ref('hbs_data').on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            hotels = data.hotels || [];
+            rooms = data.rooms || [];
+            statuses = data.statuses || ['Thu tiền', 'Đã Cọc', 'Đã Thanh Toán', 'Khách Hủy'];
+            bookings = data.bookings || [];
+        } else {
+            // Khởi tạo dữ liệu mặc định nếu Database hoàn toàn rỗng
+            statuses = ['Thu tiền', 'Đã Cọc', 'Đã Thanh Toán', 'Khách Hủy'];
+            saveData();
+        }
 
-        let bookings = JSON.parse(localStorage.getItem('hbs_bookings')) || [
-            {
-                id: 'b1',
-                code: 'BK-101',
-                hotelId: 'h1',
-                hotelName: 'Khách Sạn Biển Đà Nẵng',
-                roomType: 'Phòng VIP 101',
-                guestName: 'Nguyễn Văn Anh',
-                cccd: '048099123456',
-                nation: 'Việt Nam',
-                address: 'Đà Nẵng',
-                price: 1500000,
-                source: 'Airbnb',
-                checkin: '2026-09-08',
-                checkout: '2026-09-11',
-                total: 3000000,
-                discount: 0,
-                status: 'Đã Cọc',
-                note: 'Khách yêu cầu tầng cao'
+        // Cập nhật lại toàn bộ giao diện sau khi có dữ liệu mới
+        if (currentAuth) {
+            initAllDropdowns();
+            renderCalendar();
+            renderBookingTable('tabBookingTable');
+            if (currentAuth.role === 'admin') {
+                renderBookingTable('tabManagementTable', true);
+                renderSettingsTables();
+                generateReport();
             }
-        ];
+        }
+    });
+}
 
         let currentCalDate = new Date(); 
 
@@ -575,10 +594,14 @@
         };
 
         function saveData() {
-            localStorage.setItem('hbs_hotels', JSON.stringify(hotels));
-            localStorage.setItem('hbs_rooms', JSON.stringify(rooms));
-            localStorage.setItem('hbs_statuses', JSON.stringify(statuses));
-            localStorage.setItem('hbs_bookings', JSON.stringify(bookings));
+            db.ref('hbs_data').set({
+                    hotels: hotels,
+                    rooms: rooms,
+                    statuses: statuses,
+                    bookings: bookings
+                }).catch(error => {
+                    console.error("Lỗi khi lưu dữ liệu lên Firebase:", error);
+                });
         }
 
         // --- HAM TAO BADGE MAU TRANG THAI BOOKING ---
@@ -602,24 +625,25 @@
         // --- AUTHENTICATION & PERMISSIONS (MK DDAX UPDATE MOI) ---
         function checkAuthUI() {
             if (!currentAuth) {
-                document.getElementById('loginModal').classList.remove('hidden');
-                document.getElementById('mainHeader').classList.add('hidden');
-            } else {
-                document.getElementById('loginModal').classList.add('hidden');
-                document.getElementById('mainHeader').classList.remove('hidden');
-                document.getElementById('userInfoDisplay').innerHTML = `<i class="fa-solid fa-user-circle text-blue-600 mr-1"></i> ${currentAuth.name} (${currentAuth.role})`;
-
-                if (currentAuth.role === 'user') {
-                    document.getElementById('nav-management').style.display = 'none';
-                    document.getElementById('nav-settings').style.display = 'none';
+                    document.getElementById('loginModal').classList.remove('hidden');
+                    document.getElementById('mainHeader').classList.add('hidden');
                 } else {
-                    document.getElementById('nav-management').style.display = 'inline-block';
-                    document.getElementById('nav-settings').style.display = 'inline-block';
+                    document.getElementById('loginModal').classList.add('hidden');
+                    document.getElementById('mainHeader').classList.remove('hidden');
+                    document.getElementById('userInfoDisplay').innerHTML = `<i class="fa-solid fa-user-circle text-blue-600 mr-1"></i> ${currentAuth.name} (${currentAuth.role})`;
+            
+                    if (currentAuth.role === 'user') {
+                        document.getElementById('nav-management').style.display = 'none';
+                        document.getElementById('nav-settings').style.display = 'none';
+                    } else {
+                        document.getElementById('nav-management').style.display = 'inline-block';
+                        document.getElementById('nav-settings').style.display = 'inline-block';
+                    }
+            
+                    // Bắt đầu đồng bộ Realtime từ Firebase
+                    listenToFirebaseData();
+                    switchMainTab('booking');
                 }
-
-                initAllDropdowns();
-                switchMainTab('booking');
-            }
         }
 
         function handleLogin(e) {
