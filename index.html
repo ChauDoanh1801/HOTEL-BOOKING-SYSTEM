@@ -21,6 +21,10 @@
     <!-- Firebase JS SDK (v9 Compatibility) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <!-- Firebase JS SDK (v9 Compatibility) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen">
 
@@ -29,7 +33,7 @@
         <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center gap-3">
                 <i class="fa-solid fa-hotel text-blue-600 text-2xl"></i>
-                <span class="font-extrabold text-lg tracking-wide text-slate-900">HOTEL BOOKING SYSTEM</span>
+                <span class="font-extrabold text-lg tracking-wide text-slate-900">BOOKING MANAGEMENT SYSTEM</span>
             </div>
 
             <!-- TABS -->
@@ -406,24 +410,25 @@
     <!-- ==================== MODALS / POP-UPS ==================== -->
 
     <!-- LOGIN MODAL (Đã bỏ khung gợi ý password và bảo mật form) -->
-    <div id="loginModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-2xl max-w-md w-full shadow-2xl">
+    <div id="loginModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-6 sm:p-8 rounded-2xl max-w-sm w-full shadow-2xl">
             <div class="text-center mb-6">
-                <i class="fa-solid fa-hotel text-blue-600 text-4xl mb-2"></i>
-                <h2 class="text-2xl font-black text-slate-900">ĐĂNG NHẬP SYSTEM</h2>
-                <p class="text-xs text-slate-500 mt-1">Vui lòng đăng nhập tài khoản hệ thống</p>
+                <i class="fa-solid fa-hotel text-4xl text-blue-600 mb-2"></i>
+                <h2 class="text-xl font-bold text-slate-800">Đăng Nhập Hệ Thống</h2>
+                <p class="text-xs text-slate-500 mt-1">Quản Lý Homestay & Khách Sạn</p>
             </div>
-            <form onsubmit="handleLogin(event)" class="space-y-4" autocomplete="off">
+            <form onsubmit="handleFirebaseLogin(event)" class="space-y-4 text-xs">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tên Đăng Nhập</label>
-                    <input type="text" id="loginUser" required autocomplete="off" class="w-full border rounded-lg p-2.5 text-sm" placeholder="Nhập tên đăng nhập">
+                    <label class="block font-semibold mb-1 text-slate-600">Email Tài Khoản</label>
+                    <input type="email" id="loginEmail" required placeholder="admin@example.com" class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Mật Khẩu</label>
-                    <input type="password" id="loginPass" required autocomplete="off" class="w-full border rounded-lg p-2.5 text-sm" placeholder="••••••••">
+                    <label class="block font-semibold mb-1 text-slate-600">Mật Khẩu</label>
+                    <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full border rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition text-sm">
-                    Đăng Nhập Ngay
+                <div id="loginError" class="text-red-500 text-xs hidden font-semibold"></div>
+                <button type="submit" id="btnLoginSubmit" class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all">
+                    Đăng Nhập
                 </button>
             </form>
         </div>
@@ -622,55 +627,83 @@ function listenToFirebaseData() {
             return `<span class="inline-block px-2.5 py-1 rounded-full border text-[11px] ${colorClass}">${status}</span>`;
         }
 
-        // --- AUTHENTICATION & PERMISSIONS (MK DDAX UPDATE MOI) ---
-        function checkAuthUI() {
-            if (!currentAuth) {
-                    document.getElementById('loginModal').classList.remove('hidden');
-                    document.getElementById('mainHeader').classList.add('hidden');
+        // Khởi tạo Firebase Auth
+        const auth = firebase.auth();
+        
+        // Lắng nghe trạng thái đăng nhập từ Firebase Auth (Thay cho checkAuthUI cũ)
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // Đã đăng nhập thành công
+                document.getElementById('loginModal').classList.add('hidden');
+                document.getElementById('mainHeader').classList.remove('hidden');
+        
+                // Quy ước: Email chứa từ "admin" sẽ có quyền Admin, ngược lại là User
+                const role = user.email.includes('admin') ? 'admin' : 'user';
+                currentAuth = {
+                    uid: user.uid,
+                    email: user.email,
+                    name: user.email.split('@')[0],
+                    role: role
+                };
+        
+                document.getElementById('userInfoDisplay').innerHTML = 
+                    `<i class="fa-solid fa-user-circle text-blue-600 mr-1"></i> ${currentAuth.name} (${currentAuth.role.toUpperCase()})`;
+        
+                if (currentAuth.role === 'user') {
+                    document.getElementById('nav-management').style.display = 'none';
+                    document.getElementById('nav-settings').style.display = 'none';
                 } else {
-                    document.getElementById('loginModal').classList.add('hidden');
-                    document.getElementById('mainHeader').classList.remove('hidden');
-                    document.getElementById('userInfoDisplay').innerHTML = `<i class="fa-solid fa-user-circle text-blue-600 mr-1"></i> ${currentAuth.name} (${currentAuth.role})`;
-            
-                    if (currentAuth.role === 'user') {
-                        document.getElementById('nav-management').style.display = 'none';
-                        document.getElementById('nav-settings').style.display = 'none';
-                    } else {
-                        document.getElementById('nav-management').style.display = 'inline-block';
-                        document.getElementById('nav-settings').style.display = 'inline-block';
-                    }
-            
-                    // Bắt đầu đồng bộ Realtime từ Firebase
-                    listenToFirebaseData();
-                    switchMainTab('booking');
+                    document.getElementById('nav-management').style.display = 'inline-block';
+                    document.getElementById('nav-settings').style.display = 'inline-block';
                 }
-        }
-
-        function handleLogin(e) {
-            e.preventDefault();
-            const u = document.getElementById('loginUser').value.trim();
-            const p = document.getElementById('loginPass').value.trim();
-
-            // Cập nhật mật khẩu mới theo yêu cầu
-            if (u.toLowerCase() === 'admin' && p === '18012022') {
-                currentAuth = { user: 'Admin', name: 'Quản Trị Viên', role: 'admin' };
-            } else if (u.toLowerCase() === 'user1' && p === '12345678') {
-                currentAuth = { user: 'User1', name: 'Nhân Viên 1', role: 'user' };
-            } else if (u.toLowerCase() === 'user2' && p === '23456789') {
-                currentAuth = { user: 'User2', name: 'Nhân Viên 2', role: 'user' };
+        
+                // Bắt đầu đọc dữ liệu Realtime khi đã có quyền Auth
+                listenToFirebaseData();
+                switchMainTab('booking');
             } else {
-                alert('Tên đăng nhập hoặc mật khẩu không chính xác!');
-                return;
+                // Chưa đăng nhập hoặc Đã Đăng xuất
+                currentAuth = null;
+                document.getElementById('loginModal').classList.remove('hidden');
+                document.getElementById('mainHeader').classList.add('hidden');
             }
-
-            localStorage.setItem('hbs_auth', JSON.stringify(currentAuth));
-            checkAuthUI();
+        });
+        
+        // Hàm xử lý Đăng Nhập bằng Firebase Auth
+        function handleFirebaseLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+            const btnSubmit = document.getElementById('btnLoginSubmit');
+        
+            errorDiv.classList.add('hidden');
+            btnSubmit.innerText = "Đang kết nối...";
+            btnSubmit.disabled = true;
+        
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    btnSubmit.innerText = "Đăng Nhập";
+                    btnSubmit.disabled = false;
+                })
+                .catch((error) => {
+                    btnSubmit.innerText = "Đăng Nhập";
+                    btnSubmit.disabled = false;
+                    errorDiv.classList.remove('hidden');
+                    if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                        errorDiv.innerText = "Sai email hoặc mật khẩu!";
+                    } else {
+                        errorDiv.innerText = "Lỗi đăng nhập: " + error.message;
+                    }
+                });
         }
-
+        
+        // Hàm Đăng Xuất
         function logout() {
-            localStorage.removeItem('hbs_auth');
-            currentAuth = null;
-            location.reload();
+            if (confirm('Bạn có chắc chắn muốn đăng xuất khỏi hệ thống?')) {
+                auth.signOut().then(() => {
+                    location.reload();
+                });
+            }
         }
 
         // --- TAB SWITCHING ---
