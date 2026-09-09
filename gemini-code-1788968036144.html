@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quản Lý Booking Khách Sạn</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- SheetJS (XLSX) CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .tab-btn.active { color: #2563eb; border-bottom: 2px solid #2563eb; font-weight: 700; }
+        .past-day { background-color: #f1f5f9 !important; color: #94a3b8; }
+        .past-card { opacity: 0.55; filter: grayscale(100%); }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header id="mainHeader" class="hidden bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-hotel text-blue-600 text-2xl"></i>
+                <span class="font-extrabold text-lg tracking-wide text-slate-900">HOTEL BOOKING SYSTEM</span>
+            </div>
+
+            <!-- TABS -->
+            <nav class="flex gap-8 font-medium text-slate-600 text-sm">
+                <button onclick="switchMainTab('booking')" id="nav-booking" class="tab-btn active py-2">
+                    <i class="fa-solid fa-calendar-check mr-1.5"></i> Booking
+                </button>
+                <button onclick="switchMainTab('management')" id="nav-management" class="tab-btn py-2">
+                    <i class="fa-solid fa-list-check mr-1.5"></i> Quản Lý
+                </button>
+                <button onclick="switchMainTab('settings')" id="nav-settings" class="tab-btn py-2">
+                    <i class="fa-solid fa-sliders mr-1.5"></i> Cài Đặt
+                </button>
+            </nav>
+
+            <!-- USER INFO & LOGOUT -->
+            <div class="flex items-center gap-3 text-sm">
+                <span class="bg-slate-100 px-3 py-1 rounded-full font-semibold text-slate-700" id="userInfoDisplay">
+                    <i class="fa-solid fa-user-circle text-blue-600 mr-1"></i> Admin
+                </span>
+                <button onclick="logout()" class="text-red-600 hover:text-red-700 font-semibold text-xs border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition">
+                    <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTAINER CHÍNH -->
+    <main class="max-w-7xl mx-auto p-4 md:p-6">
+
+        <!-- ==================== TAB 1: BOOKING ==================== -->
+        <div id="tab-booking" class="tab-page space-y-6 hidden">
+            
+            <!-- 1. Dropdown chọn Tên Khách Sạn -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
+                <label class="font-bold text-slate-700 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-building text-blue-600"></i> Chọn Khách Sạn Làm Việc:
+                </label>
+                <select id="bookingHotelSelect" onchange="onHotelSelectChange()" class="border border-slate-300 rounded-xl p-2.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 w-72">
+                    <!-- JS điền danh sách -->
+                </select>
+            </div>
+
+            <!-- 2. Khu vực Tạo Booking Mới -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h2 class="text-lg font-bold mb-4 text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-plus text-blue-600"></i> Tạo Booking Mới
+                </h2>
+                <form id="createBookingForm" onsubmit="handleCreateBooking(event)" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 text-xs">
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">Mã Booking *</label>
+                        <input type="text" id="bkCode" required class="w-full border rounded-lg p-2 text-sm" placeholder="BK001">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">Khách Sạn</label>
+                        <input type="text" id="bkHotelName" readonly class="w-full border rounded-lg p-2 text-sm bg-slate-100 font-bold">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">Loại Phòng *</label>
+                        <select id="bkRoomType" required class="w-full border rounded-lg p-2 text-sm"></select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">Tên Khách *</label>
+                        <input type="text" id="bkGuestName" required class="w-full border rounded-lg p-2 text-sm" placeholder="Nguyễn Văn A">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">CCCD/Hộ Khẩu</label>
+                        <input type="text" id="bkCccd" class="w-full border rounded-lg p-2 text-sm" placeholder="048099xxxxxx">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">Quốc Tịch</label>
+                        <input type="text" id="bkNation" class="w-full border rounded-lg p-2 text-sm" placeholder="Việt Nam">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">Địa Chỉ</label>
+                        <input type="text" id="bkAddress" class="w-full border rounded-lg p-2 text-sm" placeholder="Đà Nẵng">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">Giá Bán Tham Khảo (VNĐ)</label>
+                        <input type="number" id="bkPrice" class="w-full border rounded-lg p-2 text-sm" placeholder="1000000">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">Nguồn Booking</label>
+                        <select id="bkSource" class="w-full border rounded-lg p-2 text-sm">
+                            <option>Airbnb</option>
+                            <option>Booking.com</option>
+                            <option>Agoda</option>
+                            <option>Trực Tiếp / Zalo</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">Check-in *</label>
+                        <input type="date" id="bkCheckin" required class="w-full border rounded-lg p-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">Check-out *</label>
+                        <input type="date" id="bkCheckout" required class="w-full border rounded-lg p-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">Tổng Tiền (VNĐ)</label>
+                        <input type="number" id="bkTotal" class="w-full border rounded-lg p-2 text-sm" placeholder="2000000">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">Giảm Giá (VNĐ)</label>
+                        <input type="number" id="bkDiscount" value="0" class="w-full border rounded-lg p-2 text-sm">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-600">Trạng Thái *</label>
+                        <select id="bkStatus" required class="w-full border rounded-lg p-2 text-sm"></select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block font-semibold mb-1 text-slate-600">Ghi Chú</label>
+                        <input type="text" id="bkNote" class="w-full border rounded-lg p-2 text-sm" placeholder="Ghi chú thêm...">
+                    </div>
+                    <div class="md:col-span-4 flex justify-end mt-2">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-xl transition text-sm">
+                            <i class="fa-solid fa-plus mr-1"></i> Tạo Booking Mới
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 3. Lịch Booking -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-calendar-days text-blue-600"></i> Lịch Booking
+                        </h2>
+                        <span id="calendarMonthTitle" class="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">--</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-3">
+                        <label class="text-xs font-semibold text-slate-600">Lọc Lịch Khách Sạn:</label>
+                        <select id="calendarHotelFilter" onchange="renderCalendar()" class="border rounded-lg p-1.5 text-xs font-semibold">
+                            <!-- JS Insert -->
+                        </select>
+                        <div class="flex gap-1">
+                            <button onclick="changeCalendarMonth(-1)" class="border px-3 py-1 rounded-lg hover:bg-slate-100 text-xs font-bold"><i class="fa-solid fa-chevron-left"></i></button>
+                            <button onclick="resetCalendarToToday()" class="border px-3 py-1 rounded-lg hover:bg-slate-100 text-xs font-bold bg-slate-50">Hôm Nay</button>
+                            <button onclick="changeCalendarMonth(1)" class="border px-3 py-1 rounded-lg hover:bg-slate-100 text-xs font-bold"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ô Lịch Calendar Grid -->
+                <div class="grid grid-cols-7 gap-1 text-center font-bold text-xs bg-slate-100 p-2 rounded-t-xl text-slate-600 border">
+                    <div>CN</div><div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div>
+                </div>
+                <div id="calendarGrid" class="grid grid-cols-7 gap-1 border border-t-0 p-1 bg-slate-200 rounded-b-xl min-h-[380px]">
+                    <!-- JS Grid Render -->
+                </div>
+            </div>
+
+            <!-- 4. Bảng Danh Sách Booking (Không có Sửa/Hủy + Có Phân Trang) -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h2 class="text-lg font-bold mb-4 text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-table-list text-blue-600"></i> Danh Sách Booking
+                </h2>
+                <!-- Thanh Lọc/Tìm kiếm -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                    <input type="text" id="searchKeyword" onkeyup="renderBookingTable('tabBookingTable')" placeholder="Tìm mã booking, tên khách..." class="border rounded-lg p-2 text-xs">
+                    <select id="filterHotel" onchange="renderBookingTable('tabBookingTable')" class="border rounded-lg p-2 text-xs"><option value="">Tất cả Khách Sạn</option></select>
+                    <select id="filterStatus" onchange="renderBookingTable('tabBookingTable')" class="border rounded-lg p-2 text-xs"><option value="">Tất cả Trạng Thái</option></select>
+                    <input type="date" id="filterCheckin" onchange="renderBookingTable('tabBookingTable')" class="border rounded-lg p-2 text-xs">
+                </div>
+                <!-- Bảng -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-100 uppercase font-semibold text-slate-600 border-b">
+                            <tr>
+                                <th class="p-2.5">Mã BK</th>
+                                <th class="p-2.5">Khách Sạn</th>
+                                <th class="p-2.5">Loại Phòng</th>
+                                <th class="p-2.5">Tên Khách</th>
+                                <th class="p-2.5">Check-in/out</th>
+                                <th class="p-2.5">Tổng Tiền</th>
+                                <th class="p-2.5">Trạng Thái</th>
+                                <th class="p-2.5">Ghi Chú</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabBookingTable" class="divide-y text-slate-700">
+                            <!-- JS Render -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Phân Trang Tab Booking -->
+                <div id="pgBookingControls" class="flex justify-between items-center mt-4 pt-3 border-t text-xs"></div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 2: QUẢN LÝ (Admin Only) ==================== -->
+        <div id="tab-management" class="tab-page space-y-6 hidden">
+            <!-- 1. Bảng Danh Sách Booking (Có Sửa/Hủy + Có Phân Trang) -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h2 class="text-lg font-bold mb-4 text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-blue-600"></i> Quản Lý Booking (Được Sửa/Hủy)
+                </h2>
+                <!-- Thanh Lọc/Tìm kiếm -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                    <input type="text" id="mgtSearchKeyword" onkeyup="renderBookingTable('tabManagementTable', true)" placeholder="Tìm mã booking, tên khách..." class="border rounded-lg p-2 text-xs">
+                    <select id="mgtFilterHotel" onchange="renderBookingTable('tabManagementTable', true)" class="border rounded-lg p-2 text-xs"><option value="">Tất cả Khách Sạn</option></select>
+                    <select id="mgtFilterStatus" onchange="renderBookingTable('tabManagementTable', true)" class="border rounded-lg p-2 text-xs"><option value="">Tất cả Trạng Thái</option></select>
+                    <input type="date" id="mgtFilterCheckin" onchange="renderBookingTable('tabManagementTable', true)" class="border rounded-lg p-2 text-xs">
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-100 uppercase font-semibold text-slate-600 border-b">
+                            <tr>
+                                <th class="p-2.5">Mã BK</th>
+                                <th class="p-2.5">Khách Sạn</th>
+                                <th class="p-2.5">Loại Phòng</th>
+                                <th class="p-2.5">Tên Khách</th>
+                                <th class="p-2.5">Check-in/out</th>
+                                <th class="p-2.5">Tổng Tiền</th>
+                                <th class="p-2.5">Trạng Thái</th>
+                                <th class="p-2.5">Ghi Chú</th>
+                                <th class="p-2.5 text-center">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabManagementTable" class="divide-y text-slate-700">
+                            <!-- JS Render -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Phân Trang Tab Quản Lý -->
+                <div id="pgManagementControls" class="flex justify-between items-center mt-4 pt-3 border-t text-xs"></div>
+            </div>
+
+            <!-- 2. Phần Báo Cáo & Doanh Thu -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h2 class="text-lg font-bold mb-4 text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-blue-600"></i> Báo Cáo & Doanh Thu
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6 bg-slate-50 p-4 rounded-xl border">
+                    <div>
+                        <label class="block text-xs font-semibold mb-1">Khách Sạn</label>
+                        <select id="rptHotel" class="w-full border rounded-lg p-2 text-xs"><option value="">Tất cả Khách Sạn</option></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1">Từ Ngày</label>
+                        <input type="date" id="rptFromDate" class="w-full border rounded-lg p-2 text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1">Đến Ngày</label>
+                        <input type="date" id="rptToDate" class="w-full border rounded-lg p-2 text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold mb-1">Theo Tháng</label>
+                        <input type="month" id="rptMonth" onchange="clearRptDates()" class="w-full border rounded-lg p-2 text-xs">
+                    </div>
+                    <div class="md:col-span-4 flex justify-end gap-2">
+                        <button onclick="generateReport()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs">
+                            <i class="fa-solid fa-filter mr-1"></i> Lọc Báo Cáo
+                        </button>
+                        <button onclick="exportReportExcel()" class="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-xl text-xs">
+                            <i class="fa-solid fa-file-excel mr-1"></i> Xuất File Excel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Thống kê tổng doanh thu -->
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex justify-between items-center">
+                    <span class="font-bold text-slate-700 text-sm">TỔNG DOANH THU LỌC ĐƯỢC:</span>
+                    <span id="rptTotalRevenue" class="text-2xl font-black text-blue-600">0 VNĐ</span>
+                </div>
+
+                <!-- Bảng danh sách báo cáo -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-100 uppercase font-semibold text-slate-600 border-b">
+                            <tr>
+                                <th class="p-2.5">Mã BK</th>
+                                <th class="p-2.5">Khách Sạn</th>
+                                <th class="p-2.5">Tên Khách</th>
+                                <th class="p-2.5">Check-in</th>
+                                <th class="p-2.5">Check-out</th>
+                                <th class="p-2.5">Tổng Tiền</th>
+                                <th class="p-2.5">Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rptTable" class="divide-y text-slate-700">
+                            <!-- JS Render -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 3: CÀI ĐẶT (Admin Only) ==================== -->
+        <div id="tab-settings" class="tab-page space-y-6 hidden">
+            <!-- 1. Tạo Khách Sạn Mới & Phòng Mới -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Tạo Khách Sạn -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h2 class="text-md font-bold mb-4 text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-building-circle-check text-blue-600"></i> 1. Thêm Khách Sạn Mới
+                    </h2>
+                    <form onsubmit="handleAddHotel(event)" class="space-y-3">
+                        <input type="text" id="stNewHotelName" required placeholder="Tên khách sạn mới..." class="w-full border rounded-lg p-2 text-xs">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs w-full">Lưu Khách Sạn</button>
+                    </form>
+                </div>
+
+                <!-- Tạo Phòng Mới -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h2 class="text-md font-bold mb-4 text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-door-open text-blue-600"></i> 1.1 Thêm Phòng/Loại Phòng Mới
+                    </h2>
+                    <form onsubmit="handleAddRoom(event)" class="space-y-3 text-xs">
+                        <select id="stHotelSelectForRoom" required class="w-full border rounded-lg p-2">
+                            <!-- JS Insert -->
+                        </select>
+                        <input type="text" id="stRoomName" required placeholder="Tên phòng (ví dụ: Phòng 101, Deluxe VIP...)" class="w-full border rounded-lg p-2">
+                        <div class="flex items-center gap-2">
+                            <label class="font-semibold text-slate-600">Màu thẻ lịch:</label>
+                            <input type="color" id="stRoomColor" value="#2563eb" class="h-8 w-16 p-0 border-0 rounded cursor-pointer">
+                        </div>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs w-full">Lưu Phòng Mới</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 2. Danh Sách Khách Sạn & Phòng -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h2 class="text-md font-bold mb-4 text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-list text-blue-600"></i> 2. Danh Sách Khách Sạn & Phòng
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-100 uppercase font-semibold text-slate-600 border-b">
+                            <tr>
+                                <th class="p-2.5">Khách Sạn</th>
+                                <th class="p-2.5">Loại Phòng / Tên Phòng</th>
+                                <th class="p-2.5">Màu Thẻ Lịch</th>
+                                <th class="p-2.5 text-center">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stHotelRoomTable" class="divide-y">
+                            <!-- JS Render -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 3. Tạo Trạng Thái Booking -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h2 class="text-md font-bold mb-4 text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-tags text-blue-600"></i> 3. Quản Lý Trạng Thái Booking
+                </h2>
+                <form onsubmit="handleAddStatus(event)" class="flex gap-2 mb-4">
+                    <input type="text" id="stNewStatusName" required placeholder="Tên trạng thái (VD: Khách Hủy, Đã Cọc...)" class="border rounded-lg p-2 text-xs flex-1">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs">Thêm Trạng Thái</button>
+                </form>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-100 uppercase font-semibold text-slate-600 border-b">
+                            <tr>
+                                <th class="p-2.5">Tên Trạng Thái</th>
+                                <th class="p-2.5 text-center">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stStatusTable" class="divide-y">
+                            <!-- JS Render -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ==================== MODALS / POP-UPS ==================== -->
+
+    <!-- LOGIN MODAL (Đã bỏ khung gợi ý password và bảo mật form) -->
+    <div id="loginModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl max-w-md w-full shadow-2xl">
+            <div class="text-center mb-6">
+                <i class="fa-solid fa-hotel text-blue-600 text-4xl mb-2"></i>
+                <h2 class="text-2xl font-black text-slate-900">ĐĂNG NHẬP SYSTEM</h2>
+                <p class="text-xs text-slate-500 mt-1">Vui lòng đăng nhập tài khoản hệ thống</p>
+            </div>
+            <form onsubmit="handleLogin(event)" class="space-y-4" autocomplete="off">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tên Đăng Nhập</label>
+                    <input type="text" id="loginUser" required autocomplete="off" class="w-full border rounded-lg p-2.5 text-sm" placeholder="Nhập tên đăng nhập">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Mật Khẩu</label>
+                    <input type="password" id="loginPass" required autocomplete="off" class="w-full border rounded-lg p-2.5 text-sm" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition text-sm">
+                    Đăng Nhập Ngay
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- DETAIL BOOKING MODAL (Khi click thẻ lịch) -->
+    <div id="detailModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-40 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-2xl max-w-lg w-full shadow-2xl relative">
+            <button onclick="closeModal('detailModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 class="text-lg font-bold mb-4 text-blue-600 border-b pb-2" id="dtTitle">Chi Tiết Booking</h3>
+            <div id="dtBody" class="text-xs space-y-2 text-slate-700"></div>
+        </div>
+    </div>
+
+    <!-- EDIT BOOKING MODAL (Pop-up sửa booking tab Quản Lý) -->
+    <div id="editModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-40 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-2xl max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closeModal('editModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 class="text-lg font-bold mb-4 text-slate-800 border-b pb-2">Cập Nhật Thông Tin Booking</h3>
+            <form id="editBookingForm" onsubmit="handleSaveEditBooking(event)" class="grid grid-cols-2 gap-3 text-xs">
+                <input type="hidden" id="edId">
+                <div>
+                    <label class="block font-semibold mb-1">Mã Booking</label>
+                    <input type="text" id="edCode" required class="w-full border rounded-lg p-2">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">Loại Phòng</label>
+                    <select id="edRoomType" required class="w-full border rounded-lg p-2"></select>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">Tên Khách</label>
+                    <input type="text" id="edGuestName" required class="w-full border rounded-lg p-2">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">CCCD/Hộ Khẩu</label>
+                    <input type="text" id="edCccd" class="w-full border rounded-lg p-2">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">Quốc Tịch</label>
+                    <input type="text" id="edNation" class="w-full border rounded-lg p-2">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">Địa Chỉ</label>
+                    <input type="text" id="edAddress" class="w-full border rounded-lg p-2">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">Giá Bán Tham Khảo</label>
+                    <input type="number" id="edPrice" class="w-full border rounded-lg p-2">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">Nguồn Booking</label>
+                    <select id="edSource" class="w-full border rounded-lg p-2">
+                        <option>Airbnb</option><option>Booking.com</option><option>Agoda</option><option>Trực Tiếp / Zalo</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">Check-in</label>
+                    <input type="date" id="edCheckin" required class="w-full border rounded-lg p-2">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">Check-out</label>
+                    <input type="date" id="edCheckout" required class="w-full border rounded-lg p-2">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">Tổng Tiền</label>
+                    <input type="number" id="edTotal" class="w-full border rounded-lg p-2">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1">Trạng Thái</label>
+                    <select id="edStatus" required class="w-full border rounded-lg p-2"></select>
+                </div>
+                <div class="col-span-2">
+                    <label class="block font-semibold mb-1">Ghi Chú</label>
+                    <input type="text" id="edNote" class="w-full border rounded-lg p-2">
+                </div>
+                <div class="col-span-2 flex justify-end gap-2 mt-3">
+                    <button type="button" onclick="closeModal('editModal')" class="px-4 py-2 bg-slate-200 rounded-xl">Hủy</button>
+                    <button type="submit" class="px-5 py-2 bg-blue-600 text-white font-bold rounded-xl">Lưu Cập Nhật</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CANCEL BOOKING MODAL (Pop-up hủy booking & điền lý do) -->
+    <div id="cancelModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-40 flex items-center justify-center p-4">
+        <div class="bg-white p-6 rounded-2xl max-w-md w-full shadow-2xl relative">
+            <button onclick="closeModal('cancelModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h3 class="text-lg font-bold mb-2 text-red-600">Xác Nhận Hủy Booking</h3>
+            <p class="text-xs text-slate-500 mb-4">Bạn có chắc chắn muốn hủy booking này? Nhập lý do hủy bên dưới:</p>
+            <form onsubmit="handleConfirmCancelBooking(event)" class="space-y-3">
+                <input type="hidden" id="cancelBkId">
+                <div>
+                    <label class="block text-xs font-semibold mb-1">Lý Do Hủy *</label>
+                    <textarea id="cancelReason" required rows="3" class="w-full border rounded-lg p-2 text-xs" placeholder="Ví dụ: Khách báo hủy lịch đột xuất..."></textarea>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('cancelModal')" class="px-4 py-2 bg-slate-200 text-xs font-bold rounded-xl">Quay Lại</button>
+                    <button type="submit" class="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-xl">Xác Nhận Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- JAVASCRIPT SYSTEM ENGINE -->
+    <script>
+        // --- DATA INITIALIZATION (LOCALSTORAGE / DEFAULT) ---
+        let currentAuth = JSON.parse(localStorage.getItem('hbs_auth')) || null;
+
+        let hotels = JSON.parse(localStorage.getItem('hbs_hotels')) || [
+            { id: 'h1', name: 'Khách Sạn Biển Đà Nẵng' },
+            { id: 'h2', name: 'Homestay Trung Tâm' }
+        ];
+
+        let rooms = JSON.parse(localStorage.getItem('hbs_rooms')) || [
+            { id: 'r1', hotelId: 'h1', name: 'Phòng VIP 101', color: '#2563eb' },
+            { id: 'r2', hotelId: 'h1', name: 'Phòng Standard 102', color: '#059669' },
+            { id: 'r3', hotelId: 'h2', name: 'Căn Hộ Studio 01', color: '#d97706' }
+        ];
+
+        let statuses = JSON.parse(localStorage.getItem('hbs_statuses')) || [
+            'Thu tiền', 'Đã Cọc', 'Đã Thanh Toán', 'Khách Hủy'
+        ];
+
+        let bookings = JSON.parse(localStorage.getItem('hbs_bookings')) || [
+            {
+                id: 'b1',
+                code: 'BK-101',
+                hotelId: 'h1',
+                hotelName: 'Khách Sạn Biển Đà Nẵng',
+                roomType: 'Phòng VIP 101',
+                guestName: 'Nguyễn Văn Anh',
+                cccd: '048099123456',
+                nation: 'Việt Nam',
+                address: 'Đà Nẵng',
+                price: 1500000,
+                source: 'Airbnb',
+                checkin: '2026-09-08',
+                checkout: '2026-09-11',
+                total: 3000000,
+                discount: 0,
+                status: 'Đã Cọc',
+                note: 'Khách yêu cầu tầng cao'
+            }
+        ];
+
+        let currentCalDate = new Date(); 
+
+        // Quản lý Phân trang
+        let currentPageBooking = 1;
+        let currentPageMgt = 1;
+        const rowsPerPage = 10;
+
+        // --- APP STARTUP ---
+        window.onload = function() {
+            checkAuthUI();
+        };
+
+        function saveData() {
+            localStorage.setItem('hbs_hotels', JSON.stringify(hotels));
+            localStorage.setItem('hbs_rooms', JSON.stringify(rooms));
+            localStorage.setItem('hbs_statuses', JSON.stringify(statuses));
+            localStorage.setItem('hbs_bookings', JSON.stringify(bookings));
+        }
+
+        // --- HAM TAO BADGE MAU TRANG THAI BOOKING ---
+        function getStatusBadgeHtml(status) {
+            const statusClean = (status || '').toLowerCase().trim();
+            let colorClass = 'bg-slate-100 text-slate-700 border-slate-300';
+
+            if (statusClean.includes('hủy') || statusClean.includes('cancel')) {
+                colorClass = 'bg-red-100 text-red-700 border-red-200 font-bold';
+            } else if (statusClean.includes('thanh toán') || statusClean.includes('thu tiền') || statusClean.includes('hoàn thành')) {
+                colorClass = 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold';
+            } else if (statusClean.includes('cọc') || statusClean.includes('xác nhận')) {
+                colorClass = 'bg-blue-100 text-blue-700 border-blue-200 font-bold';
+            } else if (statusClean.includes('chờ') || statusClean.includes('pending')) {
+                colorClass = 'bg-amber-100 text-amber-800 border-amber-300 font-bold';
+            }
+
+            return `<span class="inline-block px-2.5 py-1 rounded-full border text-[11px] ${colorClass}">${status}</span>`;
+        }
+
+        // --- AUTHENTICATION & PERMISSIONS (MK DDAX UPDATE MOI) ---
+        function checkAuthUI() {
+            if (!currentAuth) {
+                document.getElementById('loginModal').classList.remove('hidden');
+                document.getElementById('mainHeader').classList.add('hidden');
+            } else {
+                document.getElementById('loginModal').classList.add('hidden');
+                document.getElementById('mainHeader').classList.remove('hidden');
+                document.getElementById('userInfoDisplay').innerHTML = `<i class="fa-solid fa-user-circle text-blue-600 mr-1"></i> ${currentAuth.name} (${currentAuth.role})`;
+
+                if (currentAuth.role === 'user') {
+                    document.getElementById('nav-management').style.display = 'none';
+                    document.getElementById('nav-settings').style.display = 'none';
+                } else {
+                    document.getElementById('nav-management').style.display = 'inline-block';
+                    document.getElementById('nav-settings').style.display = 'inline-block';
+                }
+
+                initAllDropdowns();
+                switchMainTab('booking');
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('loginUser').value.trim();
+            const p = document.getElementById('loginPass').value.trim();
+
+            // Cập nhật mật khẩu mới theo yêu cầu
+            if (u.toLowerCase() === 'admin' && p === '18012022') {
+                currentAuth = { user: 'Admin', name: 'Quản Trị Viên', role: 'admin' };
+            } else if (u.toLowerCase() === 'user1' && p === '12345678') {
+                currentAuth = { user: 'User1', name: 'Nhân Viên 1', role: 'user' };
+            } else if (u.toLowerCase() === 'user2' && p === '23456789') {
+                currentAuth = { user: 'User2', name: 'Nhân Viên 2', role: 'user' };
+            } else {
+                alert('Tên đăng nhập hoặc mật khẩu không chính xác!');
+                return;
+            }
+
+            localStorage.setItem('hbs_auth', JSON.stringify(currentAuth));
+            checkAuthUI();
+        }
+
+        function logout() {
+            localStorage.removeItem('hbs_auth');
+            currentAuth = null;
+            location.reload();
+        }
+
+        // --- TAB SWITCHING ---
+        function switchMainTab(tabName) {
+            if (currentAuth.role === 'user' && tabName !== 'booking') {
+                alert('Tài khoản User không có quyền truy cập tab này!');
+                return;
+            }
+
+            document.querySelectorAll('.tab-page').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+            document.getElementById('nav-' + tabName).classList.add('active');
+
+            if (tabName === 'booking') {
+                renderCalendar();
+                renderBookingTable('tabBookingTable');
+            } else if (tabName === 'management') {
+                renderBookingTable('tabManagementTable', true);
+                generateReport();
+            } else if (tabName === 'settings') {
+                renderSettingsTables();
+            }
+        }
+
+        // --- DROPDOWNS INITIALIZATION ---
+        function initAllDropdowns() {
+            const bkHotelSelect = document.getElementById('bookingHotelSelect');
+            bkHotelSelect.innerHTML = hotels.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+
+            const calHotelFilter = document.getElementById('calendarHotelFilter');
+            calHotelFilter.innerHTML = `<option value="">Tất cả Khách Sạn</option>` + hotels.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+
+            const hotelOptions = `<option value="">Tất cả Khách Sạn</option>` + hotels.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+            document.getElementById('filterHotel').innerHTML = hotelOptions;
+            document.getElementById('mgtFilterHotel').innerHTML = hotelOptions;
+            document.getElementById('rptHotel').innerHTML = hotelOptions;
+
+            const statusOptions = `<option value="">Tất cả Trạng Thái</option>` + statuses.map(s => `<option value="${s}">${s}</option>`).join('');
+            document.getElementById('filterStatus').innerHTML = statusOptions;
+            document.getElementById('mgtFilterStatus').innerHTML = statusOptions;
+
+            onHotelSelectChange();
+        }
+
+        function onHotelSelectChange() {
+            const hId = document.getElementById('bookingHotelSelect').value;
+            const selectedHotel = hotels.find(h => h.id === hId);
+            if (!selectedHotel) return;
+
+            document.getElementById('bkHotelName').value = selectedHotel.name;
+
+            const hotelRooms = rooms.filter(r => r.hotelId === hId);
+            const bkRoomSelect = document.getElementById('bkRoomType');
+            bkRoomSelect.innerHTML = hotelRooms.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+
+            const bkStatusSelect = document.getElementById('bkStatus');
+            bkStatusSelect.innerHTML = statuses.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+
+        // --- BOOKING CREATION ---
+        function handleCreateBooking(e) {
+            e.preventDefault();
+            const hId = document.getElementById('bookingHotelSelect').value;
+            const hName = document.getElementById('bkHotelName').value;
+
+            const newBk = {
+                id: 'b_' + Date.now(),
+                code: document.getElementById('bkCode').value.trim(),
+                hotelId: hId,
+                hotelName: hName,
+                roomType: document.getElementById('bkRoomType').value,
+                guestName: document.getElementById('bkGuestName').value.trim(),
+                cccd: document.getElementById('bkCccd').value.trim(),
+                nation: document.getElementById('bkNation').value.trim(),
+                address: document.getElementById('bkAddress').value.trim(),
+                price: Number(document.getElementById('bkPrice').value) || 0,
+                source: document.getElementById('bkSource').value,
+                checkin: document.getElementById('bkCheckin').value,
+                checkout: document.getElementById('bkCheckout').value,
+                total: Number(document.getElementById('bkTotal').value) || 0,
+                discount: Number(document.getElementById('bkDiscount').value) || 0,
+                status: document.getElementById('bkStatus').value,
+                note: document.getElementById('bkNote').value.trim()
+            };
+
+            bookings.unshift(newBk);
+            saveData();
+            document.getElementById('createBookingForm').reset();
+            onHotelSelectChange();
+
+            renderCalendar();
+            renderBookingTable('tabBookingTable');
+            alert('Đã tạo Booking mới thành công!');
+        }
+
+        // --- CALENDAR RENDER ENGINE ---
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+
+            const year = currentCalDate.getFullYear();
+            const month = currentCalDate.getMonth();
+
+            document.getElementById('calendarMonthTitle').innerText = `Tháng ${month + 1} / ${year}`;
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            const selectedHotelFilter = document.getElementById('calendarHotelFilter').value;
+
+            for (let i = 0; i < firstDay; i++) {
+                grid.innerHTML += `<div class="bg-slate-50 border rounded-lg min-h-[70px]"></div>`;
+            }
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const isPast = dateStr < todayStr;
+
+                let dayBookings = bookings.filter(b => {
+                    const matchHotel = !selectedHotelFilter || b.hotelId === selectedHotelFilter;
+                    const inRange = dateStr >= b.checkin && dateStr < b.checkout;
+                    return matchHotel && inRange;
+                });
+
+                let hasBookingTick = dayBookings.length > 0 ? `<span class="text-green-600 font-bold ml-1">✓</span>` : '';
+
+                let cardsHtml = dayBookings.map(b => {
+                    const rm = rooms.find(r => r.name === b.roomType) || { color: '#2563eb' };
+                    return `
+                        <div onclick="showBookingDetail('${b.id}')" 
+                             style="background-color: ${rm.color}" 
+                             class="text-[10px] text-white p-1 rounded font-bold cursor-pointer truncate shadow-sm mt-1 hover:brightness-110 ${isPast ? 'past-card' : ''}">
+                            ${b.code}
+                        </div>
+                    `;
+                }).join('');
+
+                grid.innerHTML += `
+                    <div class="bg-white p-1 border rounded-lg min-h-[75px] flex flex-col justify-start text-left ${isPast ? 'past-day' : ''}">
+                        <div class="text-[11px] font-bold text-slate-500 mb-0.5 flex justify-between">
+                            <span>${d}</span>
+                            <span>${hasBookingTick}</span>
+                        </div>
+                        <div class="space-y-0.5 overflow-y-auto max-h-[55px]">${cardsHtml}</div>
+                    </div>
+                `;
+            }
+        }
+
+        function changeCalendarMonth(delta) {
+            currentCalDate.setMonth(currentCalDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function resetCalendarToToday() {
+            currentCalDate = new Date();
+            renderCalendar();
+        }
+
+        function showBookingDetail(bId) {
+            const b = bookings.find(item => item.id === bId);
+            if (!b) return;
+
+            document.getElementById('dtTitle').innerText = `Chi Tiết Booking: ${b.code}`;
+            document.getElementById('dtBody').innerHTML = `
+                <p><b>Khách Sạn:</b> ${b.hotelName}</p>
+                <p><b>Loại Phòng:</b> ${b.roomType}</p>
+                <p><b>Tên Khách:</b> ${b.guestName}</p>
+                <p><b>CCCD/Hộ Khẩu:</b> ${b.cccd || '-'}</p>
+                <p><b>Quốc Tịch:</b> ${b.nation || '-'}</p>
+                <p><b>Địa Chỉ:</b> ${b.address || '-'}</p>
+                <p><b>Nguồn:</b> ${b.source}</p>
+                <p><b>Thời Gian:</b> ${b.checkin} ➜ ${b.checkout}</p>
+                <p><b>Giá Bán Tham Khảo:</b> ${b.price.toLocaleString('vi-VN')} VNĐ</p>
+                <p><b>Tổng Tiền:</b> <span class="text-blue-600 font-bold">${b.total.toLocaleString('vi-VN')} VNĐ</span> (Giảm giá: ${b.discount.toLocaleString('vi-VN')} VNĐ)</p>
+                <p><b>Trạng Thái:</b> ${getStatusBadgeHtml(b.status)}</p>
+                <p><b>Ghi Chú:</b> ${b.note || '-'}</p>
+            `;
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+
+        // --- RENDER TABLES & PHÂN TRANG (PAGINATION) ---
+        function renderBookingTable(targetBodyId, isManagement = false) {
+            const kw = (document.getElementById(isManagement ? 'mgtSearchKeyword' : 'searchKeyword').value || '').toLowerCase();
+            const hFilter = document.getElementById(isManagement ? 'mgtFilterHotel' : 'filterHotel').value;
+            const sFilter = document.getElementById(isManagement ? 'mgtFilterStatus' : 'filterStatus').value;
+            const cFilter = document.getElementById(isManagement ? 'mgtFilterCheckin' : 'filterCheckin').value;
+
+            let filtered = bookings.filter(b => {
+                const matchKw = b.code.toLowerCase().includes(kw) || b.guestName.toLowerCase().includes(kw);
+                const matchHotel = !hFilter || b.hotelId === hFilter;
+                const matchStatus = !sFilter || b.status === sFilter;
+                const matchCheckin = !cFilter || b.checkin === cFilter;
+                return matchKw && matchHotel && matchStatus && matchCheckin;
+            });
+
+            // Xử lý Phân trang
+            let currentPage = isManagement ? currentPageMgt : currentPageBooking;
+            const totalPages = Math.ceil(filtered.length / rowsPerPage) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const startIdx = (currentPage - 1) * rowsPerPage;
+            const paginatedItems = filtered.slice(startIdx, startIdx + rowsPerPage);
+
+            const tbody = document.getElementById(targetBodyId);
+            if (paginatedItems.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${isManagement ? 9 : 8}" class="text-center py-6 text-slate-400">Không tìm thấy dữ liệu booking phù hợp</td></tr>`;
+            } else {
+                tbody.innerHTML = paginatedItems.map(b => `
+                    <tr class="hover:bg-slate-50 border-b">
+                        <td class="p-2.5 font-bold text-blue-600">${b.code}</td>
+                        <td class="p-2.5">${b.hotelName}</td>
+                        <td class="p-2.5">${b.roomType}</td>
+                        <td class="p-2.5 font-semibold">${b.guestName}</td>
+                        <td class="p-2.5 text-[11px]">${b.checkin} ➜ ${b.checkout}</td>
+                        <td class="p-2.5 font-bold">${b.total.toLocaleString('vi-VN')}đ</td>
+                        <td class="p-2.5">${getStatusBadgeHtml(b.status)}</td>
+                        <td class="p-2.5 text-slate-500 max-w-[150px] truncate">${b.note || '-'}</td>
+                        ${isManagement ? `
+                            <td class="p-2.5 text-center space-x-1">
+                                <button onclick="openEditModal('${b.id}')" class="text-blue-600 hover:text-blue-800 font-bold p-1"><i class="fa-solid fa-pen-to-square"></i> Sửa</button>
+                                <button onclick="openCancelModal('${b.id}')" class="text-red-600 hover:text-red-800 font-bold p-1"><i class="fa-solid fa-ban"></i> Hủy</button>
+                            </td>
+                        ` : ''}
+                    </tr>
+                `).join('');
+            }
+
+            renderPaginationControls(isManagement, filtered.length, totalPages, currentPage);
+        }
+
+        function renderPaginationControls(isManagement, totalItems, totalPages, currentPage) {
+            const containerId = isManagement ? 'pgManagementControls' : 'pgBookingControls';
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            let btnsHtml = '';
+            for (let i = 1; i <= totalPages; i++) {
+                btnsHtml += `
+                    <button onclick="changeTablePage(${isManagement}, ${i})" 
+                            class="px-2.5 py-1 rounded border text-xs font-semibold ${i === currentPage ? 'bg-blue-600 text-white border-blue-600' : 'bg-white hover:bg-slate-50 text-slate-700'}">
+                        ${i}
+                    </button>
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="text-slate-500">Hiển thị <b>${totalItems === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}</b> - <b>${Math.min(currentPage * rowsPerPage, totalItems)}</b> trên tổng số <b>${totalItems}</b> booking</div>
+                <div class="flex items-center gap-1">
+                    <button onclick="changeTablePage(${isManagement}, ${currentPage - 1})" ${currentPage === 1 ? 'disabled class="px-2 py-1 border rounded text-slate-300 cursor-not-allowed"' : 'class="px-2 py-1 border rounded hover:bg-slate-50 text-slate-700 font-bold"'}>
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    ${btnsHtml}
+                    <button onclick="changeTablePage(${isManagement}, ${currentPage + 1})" ${currentPage === totalPages ? 'disabled class="px-2 py-1 border rounded text-slate-300 cursor-not-allowed"' : 'class="px-2 py-1 border rounded hover:bg-slate-50 text-slate-700 font-bold"'}>
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        function changeTablePage(isManagement, newPage) {
+            if (isManagement) {
+                currentPageMgt = newPage;
+                renderBookingTable('tabManagementTable', true);
+            } else {
+                currentPageBooking = newPage;
+                renderBookingTable('tabBookingTable', false);
+            }
+        }
+
+        // --- MANAGEMENT ACTIONS (EDIT / CANCEL) ---
+        function openEditModal(bId) {
+            const b = bookings.find(item => item.id === bId);
+            if (!b) return;
+
+            document.getElementById('edId').value = b.id;
+            document.getElementById('edCode').value = b.code;
+            document.getElementById('edGuestName').value = b.guestName;
+            document.getElementById('edCccd').value = b.cccd;
+            document.getElementById('edNation').value = b.nation;
+            document.getElementById('edAddress').value = b.address;
+            document.getElementById('edPrice').value = b.price;
+            document.getElementById('edSource').value = b.source;
+            document.getElementById('edCheckin').value = b.checkin;
+            document.getElementById('edCheckout').value = b.checkout;
+            document.getElementById('edTotal').value = b.total;
+            document.getElementById('edNote').value = b.note;
+
+            const hotelRooms = rooms.filter(r => r.hotelId === b.hotelId);
+            document.getElementById('edRoomType').innerHTML = hotelRooms.map(r => `<option value="${r.name}">${r.name}</option>`).join('');
+            document.getElementById('edRoomType').value = b.roomType;
+
+            document.getElementById('edStatus').innerHTML = statuses.map(s => `<option value="${s}">${s}</option>`).join('');
+            document.getElementById('edStatus').value = b.status;
+
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function handleSaveEditBooking(e) {
+            e.preventDefault();
+            const id = document.getElementById('edId').value;
+            const idx = bookings.findIndex(b => b.id === id);
+
+            if (idx !== -1) {
+                bookings[idx].code = document.getElementById('edCode').value.trim();
+                bookings[idx].roomType = document.getElementById('edRoomType').value;
+                bookings[idx].guestName = document.getElementById('edGuestName').value.trim();
+                bookings[idx].cccd = document.getElementById('edCccd').value.trim();
+                bookings[idx].nation = document.getElementById('edNation').value.trim();
+                bookings[idx].address = document.getElementById('edAddress').value.trim();
+                bookings[idx].price = Number(document.getElementById('edPrice').value) || 0;
+                bookings[idx].source = document.getElementById('edSource').value;
+                bookings[idx].checkin = document.getElementById('edCheckin').value;
+                bookings[idx].checkout = document.getElementById('edCheckout').value;
+                bookings[idx].total = Number(document.getElementById('edTotal').value) || 0;
+                bookings[idx].status = document.getElementById('edStatus').value;
+                bookings[idx].note = document.getElementById('edNote').value.trim();
+
+                saveData();
+                closeModal('editModal');
+                renderBookingTable('tabManagementTable', true);
+                renderBookingTable('tabBookingTable');
+                renderCalendar();
+                alert('Đã cập nhật booking thành công!');
+            }
+        }
+
+        function openCancelModal(bId) {
+            document.getElementById('cancelBkId').value = bId;
+            document.getElementById('cancelReason').value = '';
+            document.getElementById('cancelModal').classList.remove('hidden');
+        }
+
+        function handleConfirmCancelBooking(e) {
+            e.preventDefault();
+            const id = document.getElementById('cancelBkId').value;
+            const reason = document.getElementById('cancelReason').value.trim();
+
+            const idx = bookings.findIndex(b => b.id === id);
+            if (idx !== -1) {
+                bookings[idx].status = 'Khách Hủy';
+                bookings[idx].note = (bookings[idx].note ? bookings[idx].note + ' | ' : '') + '[Lý do hủy: ' + reason + ']';
+
+                saveData();
+                closeModal('cancelModal');
+                renderBookingTable('tabManagementTable', true);
+                renderBookingTable('tabBookingTable');
+                renderCalendar();
+                alert('Đã hủy booking thành công!');
+            }
+        }
+
+        // --- REPORT & EXCEL EXPORT ---
+        function clearRptDates() {
+            if (document.getElementById('rptMonth').value) {
+                document.getElementById('rptFromDate').value = '';
+                document.getElementById('rptToDate').value = '';
+            }
+        }
+
+        function getFilteredReports() {
+            const hId = document.getElementById('rptHotel').value;
+            const from = document.getElementById('rptFromDate').value;
+            const to = document.getElementById('rptToDate').value;
+            const month = document.getElementById('rptMonth').value;
+
+            return bookings.filter(b => {
+                const matchHotel = !hId || b.hotelId === hId;
+                let matchDate = true;
+
+                if (month) {
+                    matchDate = b.checkin.startsWith(month);
+                } else if (from && to) {
+                    matchDate = b.checkin >= from && b.checkin <= to;
+                }
+
+                return matchHotel && matchDate;
+            });
+        }
+
+        function generateReport() {
+            const filtered = getFilteredReports();
+
+            const totalRev = filtered
+                .filter(b => !b.status.toLowerCase().includes('hủy'))
+                .reduce((sum, b) => sum + (b.total - b.discount), 0);
+
+            document.getElementById('rptTotalRevenue').innerText = totalRev.toLocaleString('vi-VN') + ' VNĐ';
+
+            const tbody = document.getElementById('rptTable');
+            tbody.innerHTML = filtered.map(b => `
+                <tr class="hover:bg-slate-50 border-b">
+                    <td class="p-2.5 font-bold">${b.code}</td>
+                    <td class="p-2.5">${b.hotelName}</td>
+                    <td class="p-2.5 font-semibold">${b.guestName}</td>
+                    <td class="p-2.5">${b.checkin}</td>
+                    <td class="p-2.5">${b.checkout}</td>
+                    <td class="p-2.5 font-bold text-blue-600">${b.total.toLocaleString('vi-VN')}đ</td>
+                    <td class="p-2.5">${getStatusBadgeHtml(b.status)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function exportReportExcel() {
+            const filtered = getFilteredReports();
+            if (filtered.length === 0) {
+                alert('Không có dữ liệu booking nào để xuất Excel!');
+                return;
+            }
+
+            const excelData = filtered.map(b => ({
+                "Mã Booking": b.code,
+                "Tên Khách Sạn": b.hotelName,
+                "Loại Phòng": b.roomType,
+                "Tên Khách Hàng": b.guestName,
+                "CCCD / Hộ Khẩu": b.cccd,
+                "Quốc Tịch": b.nation,
+                "Địa Chỉ": b.address,
+                "Giá Tham Khảo": b.price,
+                "Nguồn Booking": b.source,
+                "Check-in": b.checkin,
+                "Check-out": b.checkout,
+                "Tổng Tiền": b.total,
+                "Giảm Giá": b.discount,
+                "Trạng Thái": b.status,
+                "Ghi Chú": b.note
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "BaoCaoBooking");
+            XLSX.writeFile(workbook, `Bao_Cao_Booking_${Date.now()}.xlsx`);
+        }
+
+        // --- SETTINGS TAB MANAGEMENT ---
+        function handleAddHotel(e) {
+            e.preventDefault();
+            const name = document.getElementById('stNewHotelName').value.trim();
+            const newH = { id: 'h_' + Date.now(), name: name };
+            hotels.push(newH);
+            saveData();
+            document.getElementById('stNewHotelName').value = '';
+            initAllDropdowns();
+            renderSettingsTables();
+            alert('Đã thêm khách sạn mới!');
+        }
+
+        function handleAddRoom(e) {
+            e.preventDefault();
+            const hId = document.getElementById('stHotelSelectForRoom').value;
+            const rName = document.getElementById('stRoomName').value.trim();
+            const color = document.getElementById('stRoomColor').value;
+
+            rooms.push({ id: 'r_' + Date.now(), hotelId: hId, name: rName, color: color });
+            saveData();
+            document.getElementById('stRoomName').value = '';
+            initAllDropdowns();
+            renderSettingsTables();
+            alert('Đã thêm phòng mới!');
+        }
+
+        function handleAddStatus(e) {
+            e.preventDefault();
+            const name = document.getElementById('stNewStatusName').value.trim();
+            if (!statuses.includes(name)) {
+                statuses.push(name);
+                saveData();
+                document.getElementById('stNewStatusName').value = '';
+                initAllDropdowns();
+                renderSettingsTables();
+                alert('Đã thêm trạng thái mới!');
+            }
+        }
+
+        function renderSettingsTables() {
+            document.getElementById('stHotelSelectForRoom').innerHTML = hotels.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+
+            const hrTbody = document.getElementById('stHotelRoomTable');
+            hrTbody.innerHTML = rooms.map(r => {
+                const h = hotels.find(item => item.id === r.hotelId) || { name: 'Đã xóa' };
+                return `
+                    <tr class="hover:bg-slate-50 border-b">
+                        <td class="p-2.5 font-bold">${h.name}</td>
+                        <td class="p-2.5">${r.name}</td>
+                        <td class="p-2.5"><span class="inline-block w-4 h-4 rounded border" style="background-color:${r.color}"></span> ${r.color}</td>
+                        <td class="p-2.5 text-center">
+                            <button onclick="deleteRoom('${r.id}')" class="text-red-600 hover:underline font-bold">Xóa Phòng</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            const stTbody = document.getElementById('stStatusTable');
+            stTbody.innerHTML = statuses.map((s, idx) => `
+                <tr class="hover:bg-slate-50 border-b">
+                    <td class="p-2.5 font-bold">${s}</td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="deleteStatus(${idx})" class="text-red-600 hover:underline font-bold">Xóa</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function deleteRoom(rId) {
+            if (confirm('Bạn có chắc chắn muốn xóa phòng này?')) {
+                rooms = rooms.filter(r => r.id !== rId);
+                saveData();
+                initAllDropdowns();
+                renderSettingsTables();
+            }
+        }
+
+        function deleteStatus(idx) {
+            if (confirm('Bạn có chắc chắn muốn xóa trạng thái này?')) {
+                statuses.splice(idx, 1);
+                saveData();
+                initAllDropdowns();
+                renderSettingsTables();
+            }
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
