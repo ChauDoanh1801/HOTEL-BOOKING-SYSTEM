@@ -25,6 +25,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen">
 
@@ -156,13 +157,6 @@
                 </form>
             </div>
             
-            <!-- NÚT IMPORT OTA BỔ SUNG -->
-            <label class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-medium cursor-pointer inline-flex items-center gap-2 shadow-sm transition ml-2">
-                <i class="fa-solid fa-file-import"></i>
-                <span>Import OTA (Excel/CSV)</span>
-                <input type="file" id="otaInputFile" accept=".xlsx, .xls, .csv" class="hidden" onchange="processOTAFile(event)">
-            </label>
-            
             <!-- 3. Lịch Booking -->
             <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -185,7 +179,14 @@
                         </div>
                     </div>
                 </div>
-
+                
+                <!-- NÚT IMPORT OTA BỔ SUNG -->
+                <label class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-medium cursor-pointer inline-flex items-center gap-2 shadow-sm transition ml-2">
+                    <i class="fa-solid fa-file-import"></i>
+                    <span>Import OTA (Excel/CSV)</span>
+                    <input type="file" id="otaInputFile" accept=".xlsx, .xls, .csv" class="hidden" onchange="processOTAFile(event)">
+                </label>
+                
                 <!-- Ô Lịch Calendar Grid -->
                 <div class="grid grid-cols-7 gap-1 text-center font-bold text-xs bg-slate-100 p-2 rounded-t-xl text-slate-600 border">
                     <div>CN</div><div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div>
@@ -542,79 +543,79 @@
 
     <!-- JAVASCRIPT SYSTEM ENGINE -->
     <script>
-// --- FIREBASE INITIALIZATION ---
-const firebaseConfig = {
-    apiKey: "AIzaSyDbWMGsba5yba_sahGWUJSQ2mCSCBcpjec",
-    authDomain: "booking-management-syste-dd955.firebaseapp.com",
-    databaseURL: "https://booking-management-syste-dd955-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "booking-management-syste-dd955",
-    storageBucket: "booking-management-syste-dd955.firebasestorage.app",
-    messagingSenderId: "927068207274",
-    appId: "1:927068207274:web:bcfa626a20439e1b9e38d3"
-};
-
-// Khởi tạo Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// Khai báo biến toàn cục
-let currentAuth = JSON.parse(localStorage.getItem('hbs_auth')) || null;
-let hotels = [];
-let rooms = [];
-let statuses = [];
-let bookings = [];
-
-// Hàm tự động đồng bộ dữ liệu Realtime từ Firebase về web
-function listenToFirebaseData() {
-    db.ref('hbs_data').on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            hotels = data.hotels || [];
-            rooms = data.rooms || [];
-            statuses = data.statuses || ['Thu tiền', 'Đã Cọc', 'Đã Thanh Toán', 'Khách Hủy'];
-            bookings = data.bookings || [];
-        } else {
-            // Khởi tạo dữ liệu mặc định nếu Database hoàn toàn rỗng
-            statuses = ['Thu tiền', 'Đã Cọc', 'Đã Thanh Toán', 'Khách Hủy'];
-            saveData();
-        }
-
-        // Cập nhật lại toàn bộ giao diện sau khi có dữ liệu mới
-        if (currentAuth) {
-            initAllDropdowns();
-            renderCalendar();
-            renderBookingTable('tabBookingTable');
-            if (currentAuth.role === 'admin') {
-                renderBookingTable('tabManagementTable', true);
-                renderSettingsTables();
-                generateReport();
+    // --- FIREBASE INITIALIZATION ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyDbWMGsba5yba_sahGWUJSQ2mCSCBcpjec",
+        authDomain: "booking-management-syste-dd955.firebaseapp.com",
+        databaseURL: "https://booking-management-syste-dd955-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "booking-management-syste-dd955",
+        storageBucket: "booking-management-syste-dd955.firebasestorage.app",
+        messagingSenderId: "927068207274",
+        appId: "1:927068207274:web:bcfa626a20439e1b9e38d3"
+    };
+    
+    // Khởi tạo Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    
+    // Khai báo biến toàn cục
+    let currentAuth = JSON.parse(localStorage.getItem('hbs_auth')) || null;
+    let hotels = [];
+    let rooms = [];
+    let statuses = [];
+    let bookings = [];
+    
+    // Hàm tự động đồng bộ dữ liệu Realtime từ Firebase về web
+    function listenToFirebaseData() {
+        db.ref('hbs_data').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                hotels = data.hotels || [];
+                rooms = data.rooms || [];
+                statuses = data.statuses || ['Thu tiền', 'Đã Cọc', 'Đã Thanh Toán', 'Khách Hủy'];
+                bookings = data.bookings || [];
+            } else {
+                // Khởi tạo dữ liệu mặc định nếu Database hoàn toàn rỗng
+                statuses = ['Thu tiền', 'Đã Cọc', 'Đã Thanh Toán', 'Khách Hủy'];
+                saveData();
             }
-        }
-    });
-}
-
-        let currentCalDate = new Date(); 
-
-        // Quản lý Phân trang
-        let currentPageBooking = 1;
-        let currentPageMgt = 1;
-        const rowsPerPage = 10;
-
-        // --- APP STARTUP ---
-        window.onload = function() {
-            checkAuthUI();
-        };
-
-        function saveData() {
-            db.ref('hbs_data').set({
-                    hotels: hotels,
-                    rooms: rooms,
-                    statuses: statuses,
-                    bookings: bookings
-                }).catch(error => {
-                    console.error("Lỗi khi lưu dữ liệu lên Firebase:", error);
-                });
-        }
+    
+            // Cập nhật lại toàn bộ giao diện sau khi có dữ liệu mới
+            if (currentAuth) {
+                initAllDropdowns();
+                renderCalendar();
+                renderBookingTable('tabBookingTable');
+                if (currentAuth.role === 'admin') {
+                    renderBookingTable('tabManagementTable', true);
+                    renderSettingsTables();
+                    generateReport();
+                }
+            }
+        });
+    }
+    
+            let currentCalDate = new Date(); 
+    
+            // Quản lý Phân trang
+            let currentPageBooking = 1;
+            let currentPageMgt = 1;
+            const rowsPerPage = 10;
+    
+            // --- APP STARTUP ---
+            window.onload = function() {
+                checkAuthUI();
+            };
+    
+            function saveData() {
+                db.ref('hbs_data').set({
+                        hotels: hotels,
+                        rooms: rooms,
+                        statuses: statuses,
+                        bookings: bookings
+                    }).catch(error => {
+                        console.error("Lỗi khi lưu dữ liệu lên Firebase:", error);
+                    });
+            }
 
         // --- HAM TAO BADGE MAU TRANG THAI BOOKING ---
         function getStatusBadgeHtml(status) {
@@ -1362,6 +1363,146 @@ function listenToFirebaseData() {
         function closeModal(id) {
             document.getElementById(id).classList.add('hidden');
         }
+
+        // --- Hàm đọc & phân tích file OTA ---
+        async function parseOtaFile(file) {
+        let rawRows = [];
+    
+        // 1. Đọc nội dung file
+        if (file.name.toLowerCase().endsWith('.csv')) {
+            const text = await file.text();
+            const cleanText = text.replace(/^\uFEFF/, ''); // Loại bỏ UTF-8 BOM
+            const lines = cleanText.split(/\r\n|\n/).filter(l => l.trim() !== '');
+            
+            // Parse dòng CSV hỗ trợ dấu ngoặc kép
+            rawRows = lines.map(line => {
+                const matches = line.match(/(?:[^\s",]+|"[^"]*")+/g) || [];
+                return matches.map(m => m.replace(/^"|"$/g, '').trim());
+            });
+        } else {
+            // Đọc file .xls / .xlsx bằng SheetJS
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            rawRows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+        }
+    
+        if (!rawRows || rawRows.length < 2) return [];
+    
+        const headers = rawRows[0].map(h => String(h || '').trim());
+        const importedBookings = [];
+    
+        // 2. Nhận diện sàn OTA
+        const isBookingCom = headers.includes('Book Number') || headers.includes('Guest Name(s)');
+        const isAgoda = headers.includes('BookingIDExternal_reference_ID') || headers.includes('StayDateFrom');
+    
+        for (let i = 1; i < rawRows.length; i++) {
+            const row = rawRows[i];
+            if (!row || row.length === 0) continue;
+    
+            let booking = null;
+    
+            if (isBookingCom) {
+                const idIdx = headers.indexOf('Book Number');
+                const nameIdx = headers.indexOf('Guest Name(s)');
+                const checkinIdx = headers.indexOf('Check-in');
+                const checkoutIdx = headers.indexOf('Check-out');
+                const statusIdx = headers.indexOf('Status');
+                const roomIdx = headers.indexOf('Unit type');
+                const priceIdx = headers.indexOf('Price');
+    
+                const rawPrice = String(row[priceIdx] || '').replace(/[^0-9.]/g, '');
+    
+                booking = {
+                    bookingId: String(row[idIdx] || ''),
+                    customerName: row[nameIdx] || 'Khách Booking.com',
+                    checkin: row[checkinIdx] || '',
+                    checkout: row[checkoutIdx] || '',
+                    status: row[statusIdx] === 'ok' ? 'Confirmed' : row[statusIdx],
+                    roomName: String(row[roomIdx] || '').trim(),
+                    price: parseFloat(rawPrice) || 0,
+                    source: 'Booking.com'
+                };
+            } else if (isAgoda) {
+                const idIdx = headers.indexOf('BookingIDExternal_reference_ID');
+                const nameIdx = headers.indexOf('Customer_Name');
+                const checkinIdx = headers.indexOf('StayDateFrom');
+                const checkoutIdx = headers.indexOf('StayDateTo');
+                const statusIdx = headers.indexOf('Status');
+                const roomIdx = headers.indexOf('RoomType');
+                const priceIdx = headers.indexOf('Total_inclusive_rate');
+    
+                let rawRoom = String(row[roomIdx] || '');
+                const cleanRoom = rawRoom.replace(/\s*\(\d+\)$/, '').trim();
+    
+                booking = {
+                    bookingId: String(row[idIdx] || ''),
+                    customerName: row[nameIdx] || 'Khách Agoda',
+                    checkin: row[checkinIdx] || '',
+                    checkout: row[checkoutIdx] || '',
+                    status: row[statusIdx] || 'Confirmed',
+                    roomName: cleanRoom,
+                    price: parseFloat(row[priceIdx]) || 0,
+                    source: 'Agoda'
+                };
+            }
+    
+            if (booking && booking.bookingId && booking.checkin) {
+                importedBookings.push(booking);
+            }
+        }
+    
+        return importedBookings;
+    }
+        // --- Hàm xử lý sự kiện Upload & Lưu vào Firebase ---
+        async function handleImportOTAEvent(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+    
+        try {
+            // 1. Parse file tự động nhận diện Agoda / Booking.com
+            const bookings = await parseOtaFile(file);
+    
+            if (bookings.length === 0) {
+                alert("Không tìm thấy dữ liệu đặt phòng hợp lệ hoặc định dạng file không hỗ trợ!");
+                return;
+            }
+    
+            let countSuccess = 0;
+            const updates = {};
+    
+            // 2. Chuẩn bị ghi vào Firebase Realtime Database
+            bookings.forEach(b => {
+                // Dùng chính mã booking làm key để tránh trùng lặp khi import nhiều lần
+                const key = `ota_${b.source.toLowerCase()}_${b.bookingId}`;
+                updates[`bookings/${key}`] = {
+                    id: key,
+                    customerName: b.customerName,
+                    checkin: b.checkin,
+                    checkout: b.checkout,
+                    status: b.status,
+                    roomName: b.roomName,
+                    price: b.price,
+                    source: b.source,
+                    importedAt: new Date().toISOString()
+                };
+                countSuccess++;
+            });
+    
+            // 3. Thực thi cập nhật dữ liệu lên Firebase
+            await firebase.database().ref().update(updates);
+    
+            alert(`Đã import thành công ${countSuccess} booking từ ${bookings[0].source}!`);
+    
+            // Reload lại giao diện bảng / lịch
+            if (typeof renderCalendar === 'function') renderCalendar();
+            if (typeof renderBookingTable === 'function') renderBookingTable();
+    
+        } catch (error) {
+            console.error("Lỗi import OTA:", error);
+            alert("Xảy ra lỗi khi xử lý file import: " + error.message);
+        }
+    }
     </script>
 </body>
 </html>
