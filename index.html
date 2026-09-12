@@ -848,7 +848,7 @@
             const total = parseFloat(String(rawTotal).replace(/[^0-9.-]+/g, "")) || price;
         
             const roomType = getValueByKeywords(row, ['room', 'phòng', 'phong', 'unit', 'accommodation']) || '';
-            const otaBookingId = getValueByKeywords(row, ['booking id', 'reservation', 'code', 'mã', 'reference', 'id']) || '';
+            const otaBookingId = getValueByKeywords(row, ['booking id', 'bookingid', 'reservation', 'code', 'mã', 'reference', 'id']) || '';
             
             const sourcePlatform = getValueByKeywords(row, ['source', 'nguồn', 'nguon', 'channel']) || 'OTA';
         
