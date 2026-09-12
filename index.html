@@ -1398,7 +1398,7 @@
             // 2. Đọc nội dung file
             if (file.name.toLowerCase().endsWith('.csv')) {
                 const text = await file.text();
-                const cleanText = text.replace(/^\uFEFF/, ''); // Loại bỏ UTF-8 BOM
+                const cleanText = csvContent.replace(/^\uFEFF/, ''); // Loại bỏ UTF-8 BOM
                 const lines = cleanText.split(/\r\n|\n/).filter(l => l.trim() !== '');
                 rawRows = lines.map(line => parseCSVLine(line));
             } else {
@@ -1411,7 +1411,7 @@
         
             if (!rawRows || rawRows.length < 2) return [];
         
-            const headers = rawRows[0].map(h => String(h || '').trim());
+            const headers = rawHeaders.map(h => h.trim());
             const importedBookings = [];
         
             // Nhận diện sàn OTA
@@ -1448,7 +1448,9 @@
                         createdAt: new Date().toISOString()
                     };
                 } else if (isAgoda) {
-                    const idIdx = headers.indexOf('BookingIDExternal_reference_ID');
+                    const idIdx = headers.findIndex(h => 
+  h.includes('BookingID') || h.includes('Booking ID') || h === 'BookingIDExternal_reference_ID'
+);
                     const nameIdx = headers.indexOf('Customer_Name');
                     const checkinIdx = headers.indexOf('StayDateFrom');
                     const checkoutIdx = headers.indexOf('StayDateTo');
@@ -1498,7 +1500,7 @@
         
                 let countSuccess = 0;
                 // Đẩy đúng vào node `hbs_data` mà ứng dụng đang dùng
-                const dbRef = firebase.database().ref('hbs_data');
+                const dbRef = firebase.database().ref('hbs_data/bookings');
         
                 for (const item of bookings) {
                     await dbRef.push(item);
