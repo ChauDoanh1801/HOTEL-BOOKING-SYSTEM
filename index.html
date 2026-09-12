@@ -155,7 +155,14 @@
                     </div>
                 </form>
             </div>
-
+            
+            <!-- NÚT IMPORT OTA BỔ SUNG -->
+            <label class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-medium cursor-pointer inline-flex items-center gap-2 shadow-sm transition ml-2">
+                <i class="fa-solid fa-file-import"></i>
+                <span>Import OTA (Excel/CSV)</span>
+                <input type="file" id="otaInputFile" accept=".xlsx, .xls, .csv" class="hidden" onchange="processOTAFile(event)">
+            </label>
+            
             <!-- 3. Lịch Booking -->
             <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
@@ -765,6 +772,130 @@ function listenToFirebaseData() {
             bkStatusSelect.innerHTML = statuses.map(s => `<option value="${s}">${s}</option>`).join('');
         }
 
+        // ==========================================
+        // LOGIC IMPORT BOOKING TỪ FILE OTA (EXCEL/CSV)
+        // ==========================================
+        
+        function processOTAFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+        
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                    
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rawData = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+        
+                    if (rawData.length === 0) {
+                        alert("File Excel/CSV không có dữ liệu!");
+                        return;
+                    }
+        
+                    let successCount = 0;
+                    const hotelSelect = document.getElementById('filter-hotel');
+                    const currentHotelId = hotelSelect?.value || '';
+                    const currentHotelName = hotelSelect?.options[hotelSelect.selectedIndex]?.text || '';
+        
+                    rawData.forEach((row, index) => {
+                        const mappedData = mapOTARowToSystem(row, currentHotelId, currentHotelName, index);
+                        
+                        if (mappedData && mappedData.guestName && mappedData.checkin) {
+                            firebase.database().ref('hbs_data').push(mappedData);
+                            successCount++;
+                        }
+                    });
+        
+                    alert(`Import thành công ${successCount} booking! Dữ liệu đã tự động cập nhật lên Lịch và Bảng Quản Lý.`);
+                    event.target.value = '';
+        
+                } catch (err) {
+                    console.error("Lỗi đọc file OTA:", err);
+                    alert("Có lỗi xảy ra khi đọc file. Vui lòng kiểm tra lại định dạng file!");
+                }
+            };
+        
+            reader.readAsArrayBuffer(file);
+        }
+        
+        function getValueByKeywords(row, keywords) {
+            const keys = Object.keys(row);
+            for (let key of keys) {
+                const cleanKey = key.toLowerCase().trim();
+                if (keywords.some(kw => cleanKey.includes(kw))) {
+                    return row[key];
+                }
+            }
+            return null;
+        }
+        
+        function mapOTARowToSystem(row, defaultHotelId, defaultHotelName, index) {
+            const guestName = getValueByKeywords(row, ['guest', 'customer', 'tên khách', 'ten khach', 'client', 'name']) || 'Khách OTA';
+            const cccd = getValueByKeywords(row, ['passport', 'hộ chiếu', 'ho chieu', 'cccd', 'cmnd', 'id card']) || '';
+            const nation = getValueByKeywords(row, ['nationality', 'quốc tịch', 'quoc tich', 'country']) || '';
+            const address = getValueByKeywords(row, ['address', 'địa chỉ', 'dia chi']) || '';
+            
+            let checkin = getValueByKeywords(row, ['checkin', 'check-in', 'check in', 'arrival', 'ngày nhận', 'ngay nhan']) || '';
+            let checkout = getValueByKeywords(row, ['checkout', 'check-out', 'check out', 'departure', 'ngày trả', 'ngay tra']) || '';
+            
+            const rawPrice = getValueByKeywords(row, ['price', 'giá phòng', 'gia phong', 'rate']) || 0;
+            const price = parseFloat(String(rawPrice).replace(/[^0-9.-]+/g, "")) || 0;
+        
+            const rawTotal = getValueByKeywords(row, ['total', 'amount', 'giá', 'gia', 'doanh thu', 'revenue', 'tổng']) || 0;
+            const total = parseFloat(String(rawTotal).replace(/[^0-9.-]+/g, "")) || price;
+        
+            const roomType = getValueByKeywords(row, ['room', 'phòng', 'phong', 'unit', 'accommodation']) || '';
+            const otaBookingId = getValueByKeywords(row, ['booking id', 'reservation', 'code', 'mã', 'reference', 'id']) || '';
+            
+            const sourcePlatform = getValueByKeywords(row, ['source', 'nguồn', 'nguon', 'channel']) || 'OTA';
+        
+            const rawExtraBed = getValueByKeywords(row, ['extra bed', 'extrabed', 'giường phụ', 'giuong phu', 'extra_bed']);
+            const extraBedCount = parseInt(rawExtraBed) || 0;
+        
+            let noteParts = [];
+            if (otaBookingId) noteParts.push(`Mã OTA: ${otaBookingId}`);
+            if (extraBedCount > 0) noteParts.push(`[ExtraBed-${extraBedCount}]`);
+        
+            checkin = formatDateString(checkin);
+            checkout = formatDateString(checkout);
+        
+            const generatedCode = otaBookingId ? String(otaBookingId) : ('OTA' + Date.now().toString().slice(-6) + index);
+        
+            return {
+                id: 'b_' + (Date.now() + index),
+                code: generatedCode,
+                hotelId: defaultHotelId,
+                hotelName: defaultHotelName,
+                roomType: roomType,
+                guestName: String(guestName).trim(),
+                cccd: String(cccd).trim(),
+                nation: String(nation).trim(),
+                address: String(address).trim(),
+                price: price,
+                source: String(sourcePlatform),
+                checkin: checkin,
+                checkout: checkout,
+                total: total,
+                discount: 0,
+                status: 'confirmed',
+                note: noteParts.join(' - ')
+            };
+        }
+        
+        function formatDateString(dateVal) {
+            if (!dateVal) return '';
+            if (dateVal instanceof Date) {
+                return dateVal.toISOString().split('T')[0];
+            }
+            const d = new Date(dateVal);
+            if (!isNaN(d.getTime())) {
+                return d.toISOString().split('T')[0];
+            }
+            return String(dateVal);
+        }
+        
         // --- BOOKING CREATION ---
         function handleCreateBooking(e) {
             e.preventDefault();
