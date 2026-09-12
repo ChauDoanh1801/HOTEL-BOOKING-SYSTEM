@@ -1370,7 +1370,7 @@
         async function parseOtaFile(file) {
             let rawRows = [];
         
-            // 1. Hàm tách dòng CSV chuẩn xác (không bị lỗi khi có khoảng trắng hay dấu phẩy trong ngoặc kép)
+            // Hàm tách dòng CSV chuẩn xác (không làm vỡ cột khi có khoảng trắng)
             function parseCSVLine(line) {
                 const result = [];
                 let current = '';
@@ -1395,14 +1395,13 @@
                 return result;
             }
         
-            // 2. Đọc nội dung file
             if (file.name.toLowerCase().endsWith('.csv')) {
                 const text = await file.text();
-                const cleanText = csvContent.replace(/^\uFEFF/, ''); // Loại bỏ UTF-8 BOM
+                const cleanText = text.replace(/^\uFEFF/, ''); // Xóa BOM UTF-8
                 const lines = cleanText.split(/\r\n|\n/).filter(l => l.trim() !== '');
                 rawRows = lines.map(line => parseCSVLine(line));
             } else {
-                // Đọc file .xls / .xlsx bằng SheetJS cho Booking.com
+                // Đọc bằng SheetJS cho file .xls từ Booking.com
                 const data = await file.arrayBuffer();
                 const workbook = XLSX.read(data, { type: 'array' });
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -1411,12 +1410,12 @@
         
             if (!rawRows || rawRows.length < 2) return [];
         
-            const headers = rawHeaders.map(h => h.trim());
+            const headers = rawRows[0].map(h => String(h || '').trim());
             const importedBookings = [];
         
             // Nhận diện sàn OTA
             const isBookingCom = headers.includes('Book Number') || headers.includes('Guest Name(s)');
-            const isAgoda = headers.includes('BookingIDExternal_reference_ID') || headers.includes('StayDateFrom');
+            const isAgoda = headers.some(h => h.includes('BookingIDExternal_reference_ID') || h.includes('StayDateFrom'));
         
             for (let i = 1; i < rawRows.length; i++) {
                 const row = rawRows[i];
@@ -1448,9 +1447,7 @@
                         createdAt: new Date().toISOString()
                     };
                 } else if (isAgoda) {
-                    const idIdx = headers.findIndex(h => 
-  h.includes('BookingID') || h.includes('Booking ID') || h === 'BookingIDExternal_reference_ID'
-);
+                    const idIdx = headers.findIndex(h => h.includes('BookingID'));
                     const nameIdx = headers.indexOf('Customer_Name');
                     const checkinIdx = headers.indexOf('StayDateFrom');
                     const checkoutIdx = headers.indexOf('StayDateTo');
@@ -1459,7 +1456,7 @@
                     const priceIdx = headers.indexOf('Total_inclusive_rate');
         
                     let rawRoom = String(row[roomIdx] || '');
-                    const cleanRoom = rawRoom.replace(/\s*\(\d+\)$/, '').trim(); // Bỏ mã ID trong ngoặc đơn
+                    const cleanRoom = rawRoom.replace(/\s*\(\d+\)$/, '').trim();
         
                     booking = {
                         bookingCode: String(row[idIdx] || ''),
@@ -1481,46 +1478,46 @@
             }
         
             return importedBookings;
-        }
-        
+        }        
         // =========================================================================
         // BƯỚC 3: HÀM LƯU DỮ LIỆU ĐÚNG CẤU TRÚC VÀO NODE `hbs_data` CỦA FIREBASE
         // =========================================================================
         async function handleImportOTAEvent(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-        
-            try {
-                const bookings = await parseOtaFile(file);
-        
-                if (bookings.length === 0) {
-                    alert("Không tìm thấy dữ liệu đặt phòng hợp lệ trong file!");
-                    return;
-                }
-        
-                let countSuccess = 0;
-                // Đẩy đúng vào node `hbs_data` mà ứng dụng đang dùng
-                const dbRef = firebase.database().ref('hbs_data/bookings');
-        
-                for (const item of bookings) {
-                    await dbRef.push(item);
-                    countSuccess++;
-                }
-        
-                alert(`Đã import thành công ${countSuccess} booking từ ${bookings[0].source}!`);
-        
-                // Tải lại dữ liệu lên UI danh sách & lịch
-                if (typeof renderCalendar === 'function') renderCalendar();
-                if (typeof renderBookingTable === 'function') renderBookingTable();
-                if (typeof loadData === 'function') loadData(); 
-        
-            } catch (error) {
-                console.error("Lỗi import OTA:", error);
-                alert("Xảy ra lỗi khi xử lý file import: " + error.message);
-            } finally {
-                event.target.value = ''; // Reset input file
+        const file = event.target.files[0];
+        if (!file) return;
+    
+        try {
+            const bookings = await parseOtaFile(file);
+    
+            if (bookings.length === 0) {
+                alert("Không tìm thấy dữ liệu đặt phòng hợp lệ!");
+                return;
             }
+    
+            let countSuccess = 0;
+            
+            // CẬP NHẬT CHÍNH XÁC PATH: Thêm '/bookings' vào đằng sau 'hbs_data'
+            const dbRef = firebase.database().ref('hbs_data/bookings');
+    
+            for (const item of bookings) {
+                await dbRef.push(item);
+                countSuccess++;
+            }
+    
+            alert(`Import thành công ${countSuccess} booking từ ${bookings[0].source}! Dữ liệu đã tự động cập nhật lên Lịch và Bảng Quản Lý.`);
+    
+            // Reload lại giao diện
+            if (typeof renderCalendar === 'function') renderCalendar();
+            if (typeof renderBookingTable === 'function') renderBookingTable();
+            if (typeof loadData === 'function') loadData();
+    
+        } catch (error) {
+            console.error("Lỗi import OTA:", error);
+            alert("Xảy ra lỗi khi xử lý file import: " + error.message);
+        } finally {
+            event.target.value = ''; // Reset input file
         }
+    }
     </script>
 </body>
 </html>
