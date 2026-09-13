@@ -958,10 +958,8 @@
                 return;
             }
 
-            // IN DỮ LIỆU ĐỂ KIỂM TRA TRÊN CONSOLE
             console.log("--- BẮT ĐẦU TÍNH BÁO CÁO ---");
             console.log("Ngày chọn:", selectedDateValue, "| Timestamp:", targetTime);
-            console.log("Tổng số booking hiện có:", bookings.length);
 
             let totalAllRooms = 0;
             let totalOccupied = 0;
@@ -970,26 +968,39 @@
 
             const rowsHtml = hotels.map(hotel => {
                 const currentHotelIdStr = String(hotel.id);
-                const hotelRooms = rooms.filter(r => String(r.hotelId) === currentHotelIdStr);
+                const hotelRooms = rooms.filter(r => String(r.hotelId || r.hotel_id) === currentHotelIdStr);
                 const totalRooms = hotelRooms.length;
+                
+                // Gom tất cả ID phòng dạng string
                 const hotelRoomIdsStr = hotelRooms.map(r => String(r.id));
 
                 let occupiedCount = 0;
                 let checkInCount = 0;
                 let checkOutCount = 0;
 
-                bookings.forEach(b => {
-                    const bookingRoomIdStr = String(b.roomId);
+                bookings.forEach((b, index) => {
+                    // Lấy linh hoạt roomId, checkIn, checkOut bất kể viết hoa hay có gạch dưới
+                    const rId = String(b.roomId || b.room_id || b.roomIdStr || '');
+                    const cIn = b.checkIn || b.check_in || b.startDate;
+                    const cOut = b.checkOut || b.check_out || b.endDate;
+                    const status = b.status || b.bookingStatus || '';
 
-                    if (b.status === 'Đã hủy' || !hotelRoomIdsStr.includes(bookingRoomIdStr)) return;
+                    // In chi tiết đối tượng booking đầu tiên để kiểm tra cấu trúc
+                    if (index === 0) {
+                        console.log("Cấu trúc 1 Booking thực tế trong CSDL:", b);
+                    }
 
-                    const ciTime = parseAnyDateToTimestamp(b.checkIn);
-                    const coTime = parseAnyDateToTimestamp(b.checkOut);
+                    if (status === 'Đã hủy' || status === 'Cancelled') return;
+
+                    // Kiểm tra xem phòng có thuộc khách sạn đang duyệt không
+                    if (!hotelRoomIdsStr.includes(rId)) return;
+
+                    const ciTime = parseAnyDateToTimestamp(cIn);
+                    const coTime = parseAnyDateToTimestamp(cOut);
 
                     if (!ciTime || !coTime) return;
 
-                    // Log kiểm tra từng booking
-                    console.log(`Booking ID room: ${b.roomId} | CheckIn: ${b.checkIn} (${ciTime}) | CheckOut: ${b.checkOut} (${coTime})`);
+                    console.log(`-> MATCH! Room: ${rId} | CheckIn: ${cIn} | CheckOut: ${cOut}`);
 
                     if (ciTime === targetTime) checkInCount++;
                     if (coTime === targetTime) checkOutCount++;
