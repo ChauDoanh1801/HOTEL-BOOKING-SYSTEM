@@ -179,6 +179,40 @@
                     </div>
                 </div>
 
+                <!-- BẢNG BÁO CÁO THEO NGÀY -->
+                            <div class="mt-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                <!-- Thanh chọn ngày & Tiêu đề -->
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b">
+                                    <div>
+                                        <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                                            <i class="fa-solid fa-chart-column text-blue-600"></i> Báo Cáo Tình Hình Theo Ngày
+                                        </h2>
+                                        <p class="text-xs text-slate-500 mt-1">Thống kê công suất phòng, lượt nhận và trả phòng theo ngày chọn</p>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <label for="dailyReportDate" class="text-xs font-semibold text-slate-600 whitespace-nowrap">Chọn ngày:</label>
+                                        <input type="date" id="dailyReportDate" onchange="renderDailyReport()" class="border rounded-lg p-2 text-xs font-semibold text-slate-700 bg-slate-50 focus:bg-white border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                </div>
+                
+                                <!-- Bảng Thống Kê -->
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left text-xs border-collapse">
+                                        <thead class="bg-slate-100 uppercase font-semibold text-slate-600 border-b">
+                                            <tr>
+                                                <th class="p-3">Khách Sạn</th>
+                                                <th class="p-3 text-center">Phòng Đang Ở</th>
+                                                <th class="p-3 text-center">Check-in</th>
+                                                <th class="p-3 text-center">Check-out</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="dailyReportTable" class="divide-y text-slate-700">
+                                            <!-- Javascript Render -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                
                 <!-- Ô Lịch Calendar Grid -->
                 <div class="grid grid-cols-7 gap-1 text-center font-bold text-xs bg-slate-100 p-2 rounded-t-xl text-slate-600 border">
                     <div>CN</div><div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div>
@@ -535,79 +569,81 @@
 
     <!-- JAVASCRIPT SYSTEM ENGINE -->
     <script>
-// --- FIREBASE INITIALIZATION ---
-const firebaseConfig = {
-    apiKey: "AIzaSyDbWMGsba5yba_sahGWUJSQ2mCSCBcpjec",
-    authDomain: "booking-management-syste-dd955.firebaseapp.com",
-    databaseURL: "https://booking-management-syste-dd955-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "booking-management-syste-dd955",
-    storageBucket: "booking-management-syste-dd955.firebasestorage.app",
-    messagingSenderId: "927068207274",
-    appId: "1:927068207274:web:bcfa626a20439e1b9e38d3"
-};
-
-// Khởi tạo Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// Khai báo biến toàn cục
-let currentAuth = JSON.parse(localStorage.getItem('hbs_auth')) || null;
-let hotels = [];
-let rooms = [];
-let statuses = [];
-let bookings = [];
-
-// Hàm tự động đồng bộ dữ liệu Realtime từ Firebase về web
-function listenToFirebaseData() {
-    db.ref('hbs_data').on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            hotels = data.hotels || [];
-            rooms = data.rooms || [];
-            statuses = data.statuses || ['Thu tiền', 'Đã Cọc', 'Đã Thanh Toán', 'Khách Hủy'];
-            bookings = data.bookings || [];
-        } else {
-            // Khởi tạo dữ liệu mặc định nếu Database hoàn toàn rỗng
-            statuses = ['Thu tiền', 'Đã Cọc', 'Đã Thanh Toán', 'Khách Hủy'];
-            saveData();
-        }
-
-        // Cập nhật lại toàn bộ giao diện sau khi có dữ liệu mới
-        if (currentAuth) {
-            initAllDropdowns();
-            renderCalendar();
-            renderBookingTable('tabBookingTable');
-            if (currentAuth.role === 'admin') {
-                renderBookingTable('tabManagementTable', true);
-                renderSettingsTables();
-                generateReport();
-            }
-        }
-    });
-}
-
-        let currentCalDate = new Date(); 
-
-        // Quản lý Phân trang
-        let currentPageBooking = 1;
-        let currentPageMgt = 1;
-        const rowsPerPage = 10;
-
-        // --- APP STARTUP ---
-        window.onload = function() {
-            checkAuthUI();
+        // --- FIREBASE INITIALIZATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyDbWMGsba5yba_sahGWUJSQ2mCSCBcpjec",
+            authDomain: "booking-management-syste-dd955.firebaseapp.com",
+            databaseURL: "https://booking-management-syste-dd955-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "booking-management-syste-dd955",
+            storageBucket: "booking-management-syste-dd955.firebasestorage.app",
+            messagingSenderId: "927068207274",
+            appId: "1:927068207274:web:bcfa626a20439e1b9e38d3"
         };
-
-        function saveData() {
-            db.ref('hbs_data').set({
-                    hotels: hotels,
-                    rooms: rooms,
-                    statuses: statuses,
-                    bookings: bookings
-                }).catch(error => {
-                    console.error("Lỗi khi lưu dữ liệu lên Firebase:", error);
-                });
+        
+        // Khởi tạo Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        // Khai báo biến toàn cục
+        let currentAuth = JSON.parse(localStorage.getItem('hbs_auth')) || null;
+        let hotels = [];
+        let rooms = [];
+        let statuses = [];
+        let bookings = [];
+        
+        // Hàm tự động đồng bộ dữ liệu Realtime từ Firebase về web
+        function listenToFirebaseData() {
+            db.ref('hbs_data').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    hotels = data.hotels || [];
+                    rooms = data.rooms || [];
+                    statuses = data.statuses || ['Thu tiền', 'Đã Cọc', 'Đã Thanh Toán', 'Khách Hủy'];
+                    bookings = data.bookings || [];
+                } else {
+                    // Khởi tạo dữ liệu mặc định nếu Database hoàn toàn rỗng
+                    statuses = ['Thu tiền', 'Đã Cọc', 'Đã Thanh Toán', 'Khách Hủy'];
+                    saveData();
+                }
+        
+                // Cập nhật lại toàn bộ giao diện sau khi có dữ liệu mới
+                if (currentAuth) {
+                    initAllDropdowns();
+                    renderCalendar();
+                    renderBookingTable('tabBookingTable');
+                    initDailyReportDate();
+                    renderDailyReport();
+                    if (currentAuth.role === 'admin') {
+                        renderBookingTable('tabManagementTable', true);
+                        renderSettingsTables();
+                        generateReport();
+                    }
+                }
+            });
         }
+        
+                let currentCalDate = new Date(); 
+        
+                // Quản lý Phân trang
+                let currentPageBooking = 1;
+                let currentPageMgt = 1;
+                const rowsPerPage = 10;
+        
+                // --- APP STARTUP ---
+                window.onload = function() {
+                    checkAuthUI();
+                };
+        
+                function saveData() {
+                    db.ref('hbs_data').set({
+                            hotels: hotels,
+                            rooms: rooms,
+                            statuses: statuses,
+                            bookings: bookings
+                        }).catch(error => {
+                            console.error("Lỗi khi lưu dữ liệu lên Firebase:", error);
+                        });
+                }
 
         // --- HAM TAO BADGE MAU TRANG THAI BOOKING ---
         function getStatusBadgeHtml(status) {
@@ -888,6 +924,121 @@ function listenToFirebaseData() {
             document.getElementById('detailModal').classList.remove('hidden');
         }
 
+        // --- KHỞI TẠO VÀ RENDER BÁO CÁO THEO NGÀY ---
+        
+                // Hàm hỗ trợ format ngày YYYY-MM-DD theo giờ địa phương
+                function formatDateToYYYYMMDD(d) {
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                }
+        
+                // Khởi tạo ngày mặc định cho Ô chọn ngày (Lấy ngày hôm nay)
+                function initDailyReportDate() {
+                    const dateInput = document.getElementById('dailyReportDate');
+                    if (dateInput && !dateInput.value) {
+                        dateInput.value = formatDateToYYYYMMDD(new Date());
+                    }
+                }
+        
+                // Hàm tính toán và render dữ liệu Báo cáo
+                function renderDailyReport() {
+                    const reportDateInput = document.getElementById('dailyReportDate');
+                    const tbody = document.getElementById('dailyReportTable');
+                    if (!reportDateInput || !tbody) return;
+        
+                    const selectedDateStr = reportDateInput.value;
+                    if (!selectedDateStr) return;
+        
+                    const targetDate = new Date(selectedDateStr + 'T00:00:00');
+        
+                    if (!hotels || hotels.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Chưa có dữ liệu khách sạn</td></tr>`;
+                        return;
+                    }
+        
+                    let totalAllRooms = 0;
+                    let totalOccupied = 0;
+                    let totalCheckIn = 0;
+                    let totalCheckOut = 0;
+        
+                    const rowsHtml = hotels.map(hotel => {
+                        // 1. Lấy danh sách phòng thuộc khách sạn này
+                        const hotelRooms = rooms.filter(r => r.hotelId === hotel.id);
+                        const totalRooms = hotelRooms.length;
+                        const hotelRoomIds = hotelRooms.map(r => r.id);
+        
+                        let occupiedCount = 0;
+                        let checkInCount = 0;
+                        let checkOutCount = 0;
+        
+                        // 2. Duyệt qua tất cả booking active (không tính booking Đã hủy)
+                        bookings.forEach(b => {
+                            if (b.status === 'Đã hủy' || !hotelRoomIds.includes(b.roomId)) return;
+        
+                            const ci = new Date(b.checkIn + 'T00:00:00');
+                            const co = new Date(b.checkOut + 'T00:00:00');
+        
+                            // Check-in trong ngày
+                            if (b.checkIn === selectedDateStr) {
+                                checkInCount++;
+                            }
+        
+                            // Check-out trong ngày
+                            if (b.checkOut === selectedDateStr) {
+                                checkOutCount++;
+                            }
+        
+                            // Phòng đang ở trong ngày (Nằm trong khoảng từ Check-in đến trước Check-out)
+                            if (targetDate >= ci && targetDate < co) {
+                                occupiedCount++;
+                            }
+                        });
+        
+                        // Cộng dồn tổng toàn hệ thống
+                        totalAllRooms += totalRooms;
+                        totalOccupied += occupiedCount;
+                        totalCheckIn += checkInCount;
+                        totalCheckOut += checkOutCount;
+        
+                        // Tỷ lệ lấp đầy (%)
+                        const occupancyRate = totalRooms > 0 ? Math.round((occupiedCount / totalRooms) * 100) : 0;
+        
+                        return `
+                            <tr class="hover:bg-slate-50 border-b">
+                                <td class="p-3 font-bold text-slate-800">${hotel.name}</td>
+                                <td class="p-3 text-center">
+                                    <span class="font-bold text-blue-600">${occupiedCount}</span> / ${totalRooms}
+                                    <span class="text-[10px] text-slate-400 ml-1">(${occupancyRate}%)</span>
+                                </td>
+                                <td class="p-3 text-center">
+                                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold ${checkInCount > 0 ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400'}">
+                                        ${checkInCount}
+                                    </span>
+                                </td>
+                                <td class="p-3 text-center">
+                                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold ${checkOutCount > 0 ? 'bg-amber-100 text-amber-700' : 'text-slate-400'}">
+                                        ${checkOutCount}
+                                    </span>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+        
+                    // Dòng tổng cộng
+                    const totalRowHtml = `
+                        <tr class="bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-300">
+                            <td class="p-3">TỔNG CỘNG</td>
+                            <td class="p-3 text-center text-blue-700">${totalOccupied} / ${totalAllRooms}</td>
+                            <td class="p-3 text-center text-emerald-700">${totalCheckIn}</td>
+                            <td class="p-3 text-center text-amber-700">${totalCheckOut}</td>
+                        </tr>
+                    `;
+        
+                    tbody.innerHTML = rowsHtml + totalRowHtml;
+                }
+        
         // --- RENDER TABLES & PHÂN TRANG (PAGINATION) ---
         function renderBookingTable(targetBodyId, isManagement = false) {
             const kw = (document.getElementById(isManagement ? 'mgtSearchKeyword' : 'searchKeyword').value || '').toLowerCase();
@@ -1030,6 +1181,7 @@ function listenToFirebaseData() {
                 renderBookingTable('tabManagementTable', true);
                 renderBookingTable('tabBookingTable');
                 renderCalendar();
+                renderDailyReport();
                 alert('Đã cập nhật booking thành công!');
             }
         }
@@ -1055,6 +1207,7 @@ function listenToFirebaseData() {
                 renderBookingTable('tabManagementTable', true);
                 renderBookingTable('tabBookingTable');
                 renderCalendar();
+                renderDailyReport();
                 alert('Đã hủy booking thành công!');
             }
         }
