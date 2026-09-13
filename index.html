@@ -958,6 +958,11 @@
                 return;
             }
 
+            // IN DỮ LIỆU ĐỂ KIỂM TRA TRÊN CONSOLE
+            console.log("--- BẮT ĐẦU TÍNH BÁO CÁO ---");
+            console.log("Ngày chọn:", selectedDateValue, "| Timestamp:", targetTime);
+            console.log("Tổng số booking hiện có:", bookings.length);
+
             let totalAllRooms = 0;
             let totalOccupied = 0;
             let totalCheckIn = 0;
@@ -982,6 +987,9 @@
                     const coTime = parseAnyDateToTimestamp(b.checkOut);
 
                     if (!ciTime || !coTime) return;
+
+                    // Log kiểm tra từng booking
+                    console.log(`Booking ID room: ${b.roomId} | CheckIn: ${b.checkIn} (${ciTime}) | CheckOut: ${b.checkOut} (${coTime})`);
 
                     if (ciTime === targetTime) checkInCount++;
                     if (coTime === targetTime) checkOutCount++;
