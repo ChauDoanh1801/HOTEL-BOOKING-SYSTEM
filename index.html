@@ -922,18 +922,31 @@
             }
         }
         
-        // --- HÀM RENDER BÁO CÁO THEO NGÀY (ĐÃ TỐI ƯU ĐẾM CHÍNH XÁC) ---
+        // --- HÀM TẠO CHUỖI NGÀY HÔM NAY (YYYY-MM-DD) ---
+        function getTodayString() {
+            const d = new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        function initDailyReportDate() {
+            const dateInput = document.getElementById('dailyReportDate');
+            if (dateInput && !dateInput.value) {
+                dateInput.value = getTodayString();
+            }
+        }
+        
+        // --- HÀM RENDER BÁO CÁO DÙNG SO SÁNH CHUỖI STRING (ĐẢM BẢO CHÍNH XÁC 100%) ---
         function renderDailyReport() {
             const reportDateInput = document.getElementById('dailyReportDate');
             const tbody = document.getElementById('dailyReportTable');
             if (!reportDateInput || !tbody) return;
         
-            const selectedDateStr = reportDateInput.value;
-            if (!selectedDateStr) return;
-        
-            // Lấy timestamp đầu ngày của ngày đang chọn
-            const targetTime = getStartOfDayTimestamp(selectedDateStr);
-            if (!targetTime) return;
+            // Chuỗi ngày đang chọn dạng "YYYY-MM-DD"
+            const targetDateStr = reportDateInput.value; 
+            if (!targetDateStr) return;
         
             if (!hotels || hotels.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Chưa có dữ liệu khách sạn</td></tr>`;
@@ -946,7 +959,7 @@
             let totalCheckOut = 0;
         
             const rowsHtml = hotels.map(hotel => {
-                // Lấy danh sách phòng thuộc khách sạn hiện tại
+                // Lấy danh sách phòng thuộc khách sạn này
                 const hotelRooms = rooms.filter(r => r.hotelId === hotel.id);
                 const totalRooms = hotelRooms.length;
                 const hotelRoomIds = hotelRooms.map(r => r.id);
@@ -959,23 +972,25 @@
                     // Bỏ qua booking bị Hủy hoặc không thuộc Khách sạn này
                     if (b.status === 'Đã hủy' || !hotelRoomIds.includes(b.roomId)) return;
         
-                    const ciTime = getStartOfDayTimestamp(b.checkIn);
-                    const coTime = getStartOfDayTimestamp(b.checkOut);
+                    // Chuẩn hóa định dạng chuỗi date trong booking về chuẩn YYYY-MM-DD (phòng trường hợp lưu 2026-9-5)
+                    const ci = b.checkIn ? b.checkIn.split('-').map(p => p.padStart(2, '0')).join('-') : '';
+                    const co = b.checkOut ? b.checkOut.split('-').map(p => p.padStart(2, '0')).join('-') : '';
         
-                    if (!ciTime || !coTime) return;
+                    if (!ci || !co) return;
         
-                    // 1. Đếm lượt Check-in trong ngày chọn
-                    if (ciTime === targetTime) {
+                    // 1. Check-in trong ngày
+                    if (ci === targetDateStr) {
                         checkInCount++;
                     }
         
-                    // 2. Đếm lượt Check-out trong ngày chọn
-                    if (coTime === targetTime) {
+                    // 2. Check-out trong ngày
+                    if (co === targetDateStr) {
                         checkOutCount++;
                     }
         
-                    // 3. Đếm Phòng đang ở: Ngày chọn >= Check-in VÀ Ngày chọn < Check-out
-                    if (targetTime >= ciTime && targetTime < coTime) {
+                    // 3. Phòng đang ở: Ngày chọn >= Ngày Check-in VÀ Ngày chọn < Ngày Check-out
+                    // So sánh chuỗi trực tiếp: ví dụ "2026-09-13" >= "2026-09-10" && "2026-09-13" < "2026-09-15"
+                    if (targetDateStr >= ci && targetDateStr < co) {
                         occupiedCount++;
                     }
                 });
@@ -1008,7 +1023,7 @@
                 `;
             }).join('');
         
-            // Hàng tổng cộng toàn hệ thống
+            // Dòng tổng cộng
             const totalRowHtml = `
                 <tr class="bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-300">
                     <td class="p-3">TỔNG CỘNG</td>
@@ -1020,7 +1035,6 @@
         
             tbody.innerHTML = rowsHtml + totalRowHtml;
         }
-
         function changeCalendarMonth(delta) {
             currentCalDate.setMonth(currentCalDate.getMonth() + delta);
             renderCalendar();
