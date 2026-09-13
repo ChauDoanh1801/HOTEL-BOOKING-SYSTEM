@@ -893,115 +893,113 @@
             }
         }
 
-        // --- HÀM HỖ TRỢ CHUẨN HÓA NGÀY VỀ TIMESTAMP ĐẦU NGÀY (00:00:00) ---
-        function getStartOfDayTimestamp(dateStr) {
+        // --- HÀM TỰ ĐỘNG CHUYỂN MỌI DẠNG CHUỖI NGÀY VỀ TIMESTAMP NGUYÊN BẢN ---
+        function parseAnyDateToTimestamp(dateStr) {
             if (!dateStr) return null;
-            // Tách chuỗi YYYY-MM-DD hoặc YYYY-M-D
-            const parts = dateStr.split('-');
-            if (parts.length < 3) return null;
-            
-            const year = parseInt(parts[0], 10);
-            const month = parseInt(parts[1], 10) - 1; // Month trong JS bắt đầu từ 0
-            const day = parseInt(parts[2], 10);
-            
-            // Tạo Date theo giờ địa phương chuẩn 00:00:00
+            let year, month, day;
+
+            // Trường hợp 1: Định dạng "YYYY-MM-DD"
+            if (dateStr.includes('-')) {
+                const parts = dateStr.split('-');
+                if (parts.length === 3) {
+                    year = parseInt(parts[0], 10);
+                    month = parseInt(parts[1], 10) - 1;
+                    day = parseInt(parts[2], 10);
+                }
+            } 
+            // Trường hợp 2: Định dạng "MM/DD/YYYY" hoặc "DD/MM/YYYY" (như trong ảnh 09/14/2026)
+            else if (dateStr.includes('/')) {
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    const p1 = parseInt(parts[0], 10);
+                    const p2 = parseInt(parts[1], 10);
+                    const p3 = parseInt(parts[2], 10);
+
+                    // Nếu p1 > 12 -> chắc chắn p1 là Day (DD/MM/YYYY)
+                    if (p1 > 12) {
+                        day = p1;
+                        month = p2 - 1;
+                        year = p3;
+                    } else { // Mặc định kiểu Mỹ MM/DD/YYYY (09/14/2026)
+                        month = p1 - 1;
+                        day = p2;
+                        year = p3;
+                    }
+                }
+            }
+
+            if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+
+            // Trả về Timestamp lúc 00:00:00 của ngày đó
             return new Date(year, month, day, 0, 0, 0, 0).getTime();
         }
-        
-        function formatDateToYYYYMMDD(d) {
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-        
-        function initDailyReportDate() {
-            const dateInput = document.getElementById('dailyReportDate');
-            if (dateInput && !dateInput.value) {
-                dateInput.value = formatDateToYYYYMMDD(new Date());
-            }
-        }
-        
-        // --- HÀM TẠO CHUỖI NGÀY HÔM NAY (YYYY-MM-DD) ---
-        function getTodayString() {
-            const d = new Date();
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-        
-        function initDailyReportDate() {
-            const dateInput = document.getElementById('dailyReportDate');
-            if (dateInput && !dateInput.value) {
-                dateInput.value = getTodayString();
-            }
-        }
-        
-        // --- HÀM RENDER BÁO CÁO DÙNG SO SÁNH CHUỖI STRING (ĐẢM BẢO CHÍNH XÁC 100%) ---
+
+        // --- HÀM RENDER BÁO CÁO THEO NGÀY (ĐÃ FIX LỖI 09/14/2026) ---
         function renderDailyReport() {
             const reportDateInput = document.getElementById('dailyReportDate');
             const tbody = document.getElementById('dailyReportTable');
             if (!reportDateInput || !tbody) return;
-        
-            // Chuỗi ngày đang chọn dạng "YYYY-MM-DD"
-            const targetDateStr = reportDateInput.value; 
-            if (!targetDateStr) return;
-        
+
+            const selectedDateValue = reportDateInput.value; 
+            if (!selectedDateValue) return;
+
+            // Chuyển ngày được chọn trên UI thành Timestamp
+            const targetTime = parseAnyDateToTimestamp(selectedDateValue);
+            if (!targetTime) return;
+
             if (!hotels || hotels.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Chưa có dữ liệu khách sạn</td></tr>`;
                 return;
             }
-        
+
             let totalAllRooms = 0;
             let totalOccupied = 0;
             let totalCheckIn = 0;
             let totalCheckOut = 0;
-        
+
             const rowsHtml = hotels.map(hotel => {
-                // Lấy danh sách phòng thuộc khách sạn này
+                // Lấy phòng thuộc khách sạn này
                 const hotelRooms = rooms.filter(r => r.hotelId === hotel.id);
                 const totalRooms = hotelRooms.length;
                 const hotelRoomIds = hotelRooms.map(r => r.id);
-        
+
                 let occupiedCount = 0;
                 let checkInCount = 0;
                 let checkOutCount = 0;
-        
+
                 bookings.forEach(b => {
                     // Bỏ qua booking bị Hủy hoặc không thuộc Khách sạn này
                     if (b.status === 'Đã hủy' || !hotelRoomIds.includes(b.roomId)) return;
-        
-                    // Chuẩn hóa định dạng chuỗi date trong booking về chuẩn YYYY-MM-DD (phòng trường hợp lưu 2026-9-5)
-                    const ci = b.checkIn ? b.checkIn.split('-').map(p => p.padStart(2, '0')).join('-') : '';
-                    const co = b.checkOut ? b.checkOut.split('-').map(p => p.padStart(2, '0')).join('-') : '';
-        
-                    if (!ci || !co) return;
-        
+
+                    // Chuyển checkIn và checkOut của Booking về Timestamp
+                    const ciTime = parseAnyDateToTimestamp(b.checkIn);
+                    const coTime = parseAnyDateToTimestamp(b.checkOut);
+
+                    if (!ciTime || !coTime) return;
+
                     // 1. Check-in trong ngày
-                    if (ci === targetDateStr) {
+                    if (ciTime === targetTime) {
                         checkInCount++;
                     }
-        
+
                     // 2. Check-out trong ngày
-                    if (co === targetDateStr) {
+                    if (coTime === targetTime) {
                         checkOutCount++;
                     }
-        
-                    // 3. Phòng đang ở: Ngày chọn >= Ngày Check-in VÀ Ngày chọn < Ngày Check-out
-                    // So sánh chuỗi trực tiếp: ví dụ "2026-09-13" >= "2026-09-10" && "2026-09-13" < "2026-09-15"
-                    if (targetDateStr >= ci && targetDateStr < co) {
+
+                    // 3. Phòng đang ở (Ngày chọn >= Check-in VÀ Ngày chọn < Check-out)
+                    if (targetTime >= ciTime && targetTime < coTime) {
                         occupiedCount++;
                     }
                 });
-        
+
                 totalAllRooms += totalRooms;
                 totalOccupied += occupiedCount;
                 totalCheckIn += checkInCount;
                 totalCheckOut += checkOutCount;
-        
+
                 const occupancyRate = totalRooms > 0 ? Math.round((occupiedCount / totalRooms) * 100) : 0;
-        
+
                 return `
                     <tr class="hover:bg-slate-50 border-b">
                         <td class="p-3 font-bold text-slate-800">${hotel.name}</td>
@@ -1022,8 +1020,7 @@
                     </tr>
                 `;
             }).join('');
-        
-            // Dòng tổng cộng
+
             const totalRowHtml = `
                 <tr class="bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-300">
                     <td class="p-3">TỔNG CỘNG</td>
@@ -1032,7 +1029,7 @@
                     <td class="p-3 text-center text-amber-700">${totalCheckOut}</td>
                 </tr>
             `;
-        
+
             tbody.innerHTML = rowsHtml + totalRowHtml;
         }
         function changeCalendarMonth(delta) {
