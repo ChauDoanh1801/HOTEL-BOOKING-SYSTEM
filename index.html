@@ -879,9 +879,9 @@
                 let cardsHtml = dayBookings.map(b => {
                     const rm = rooms.find(r => r.name === b.roomType) || { color: '#2563eb' };
                     return `
-                        <div onclick="showBookingDetail('${b.id}')" 
+                        <div data-id="${b.id}" 
                              style="background-color: ${rm.color}" 
-                             class="text-[10px] text-white p-1 rounded font-bold cursor-pointer truncate shadow-sm mt-1 hover:brightness-110 ${isPast ? 'past-card' : ''}">
+                             class="booking-card text-[10px] text-white p-1 rounded font-bold cursor-pointer truncate shadow-sm mt-1 hover:brightness-110 ${isPast ? 'past-card' : ''}">
                             ${b.code}
                         </div>
                     `;
@@ -1383,6 +1383,31 @@
         function closeModal(id) {
             document.getElementById(id).classList.add('hidden');
         }
+
+        document.addEventListener('click', function(e) {
+            const card = e.target.closest('.booking-card');
+            if (!card) return;
+        
+            const bookingId = card.getAttribute('data-id');
+            if (!bookingId) return;
+        
+            // Tìm thông tin booking trong mảng bookings
+            const booking = bookings.find(b => String(b.id) === String(bookingId));
+            if (!booking) return;
+        
+            // Kiểm tra xem trong file có hàm xem chi tiết nào khác không và gọi hàm đó
+            if (typeof showBookingDetail === 'function') {
+                showBookingDetail(bookingId);
+            } else if (typeof openBookingModal === 'function') {
+                openBookingModal(bookingId);
+            } else if (typeof viewBooking === 'function') {
+                viewBooking(bookingId);
+            } else {
+                // Trường hợp không tìm thấy hàm modal nào, hiển thị thông báo chi tiết cơ bản
+                alert(`THÔNG TIN BOOKING:\nMã: ${booking.code || ''}\nKhách hàng: ${booking.guestName || ''}\nSĐT/CCCD: ${booking.cccd || ''}\nLoại phòng: ${booking.roomType || ''}\nCheck-in: ${booking.checkin || ''}\nCheck-out: ${booking.checkout || ''}\nTrạng thái: ${booking.status || ''}`);
+            }
+        });
+        
     </script>
 </body>
 </html>
