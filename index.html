@@ -178,7 +178,17 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Ô Lịch Calendar Grid -->
+                <div class="grid grid-cols-7 gap-1 text-center font-bold text-xs bg-slate-100 p-2 rounded-t-xl text-slate-600 border">
+                    <div>CN</div><div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div>
+                </div>
+                <div id="calendarGrid" class="grid grid-cols-7 gap-1 border border-t-0 p-1 bg-slate-200 rounded-b-xl min-h-[380px]">
+                    <!-- JS Grid Render -->
+                </div>
+            </div>
 
+            
                 <!-- BẢNG BÁO CÁO THEO NGÀY -->
                             <div class="mt-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                                 <!-- Thanh chọn ngày & Tiêu đề -->
@@ -212,15 +222,6 @@
                                     </table>
                                 </div>
                             </div>
-                
-                <!-- Ô Lịch Calendar Grid -->
-                <div class="grid grid-cols-7 gap-1 text-center font-bold text-xs bg-slate-100 p-2 rounded-t-xl text-slate-600 border">
-                    <div>CN</div><div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div>
-                </div>
-                <div id="calendarGrid" class="grid grid-cols-7 gap-1 border border-t-0 p-1 bg-slate-200 rounded-b-xl min-h-[380px]">
-                    <!-- JS Grid Render -->
-                </div>
-            </div>
 
             <!-- 4. Bảng Danh Sách Booking (Không có Sửa/Hủy + Có Phân Trang) -->
             <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -926,118 +927,129 @@
 
         // --- KHỞI TẠO VÀ RENDER BÁO CÁO THEO NGÀY ---
         
-                // Hàm hỗ trợ format ngày YYYY-MM-DD theo giờ địa phương
-                function formatDateToYYYYMMDD(d) {
-                    const year = d.getFullYear();
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    return `${year}-${month}-${day}`;
-                }
-        
-                // Khởi tạo ngày mặc định cho Ô chọn ngày (Lấy ngày hôm nay)
-                function initDailyReportDate() {
-                    const dateInput = document.getElementById('dailyReportDate');
-                    if (dateInput && !dateInput.value) {
-                        dateInput.value = formatDateToYYYYMMDD(new Date());
+        // --- HÀM XỬ LÝ CHUẨN HÓA NGÀY THÁNG SỐ SÁNH ---
+        function parseToStartOfDayNum(dateStr) {
+            if (!dateStr) return null;
+            // Xử lý chuỗi date dạng YYYY-MM-DD hoặc YYYY-M-D
+            const parts = dateStr.split('-');
+            if (parts.length < 3) return null;
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10) - 1;
+            const d = parseInt(parts[2], 10);
+            return new Date(y, m, d, 0, 0, 0, 0).getTime();
+        }
+
+        function formatDateToYYYYMMDD(d) {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function initDailyReportDate() {
+            const dateInput = document.getElementById('dailyReportDate');
+            if (dateInput && !dateInput.value) {
+                dateInput.value = formatDateToYYYYMMDD(new Date());
+            }
+        }
+
+        // --- HÀM RENDER BÁO CÁO THEO NGÀY (ĐÃ SỬA LỖI COUNT PHÒNG) ---
+        function renderDailyReport() {
+            const reportDateInput = document.getElementById('dailyReportDate');
+            const tbody = document.getElementById('dailyReportTable');
+            if (!reportDateInput || !tbody) return;
+
+            const selectedDateStr = reportDateInput.value;
+            if (!selectedDateStr) return;
+
+            // Đổi ngày chọn về Timestamp đầu ngày (00:00:00)
+            const targetTime = parseToStartOfDayNum(selectedDateStr);
+            if (!targetTime) return;
+
+            if (!hotels || hotels.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Chưa có dữ liệu khách sạn</td></tr>`;
+                return;
+            }
+
+            let totalAllRooms = 0;
+            let totalOccupied = 0;
+            let totalCheckIn = 0;
+            let totalCheckOut = 0;
+
+            const rowsHtml = hotels.map(hotel => {
+                // Lấy phòng của khách sạn hiện tại
+                const hotelRooms = rooms.filter(r => r.hotelId === hotel.id);
+                const totalRooms = hotelRooms.length;
+                const hotelRoomIds = hotelRooms.map(r => r.id);
+
+                let occupiedCount = 0;
+                let checkInCount = 0;
+                let checkOutCount = 0;
+
+                bookings.forEach(b => {
+                    // Bỏ qua nếu bị Hủy hoặc không thuộc Khách sạn này
+                    if (b.status === 'Đã hủy' || !hotelRoomIds.includes(b.roomId)) return;
+
+                    const ciTime = parseToStartOfDayNum(b.checkIn);
+                    const coTime = parseToStartOfDayNum(b.checkOut);
+
+                    if (!ciTime || !coTime) return;
+
+                    // 1. Check-in trong ngày
+                    if (ciTime === targetTime) {
+                        checkInCount++;
                     }
-                }
-        
-                // Hàm tính toán và render dữ liệu Báo cáo
-                function renderDailyReport() {
-                    const reportDateInput = document.getElementById('dailyReportDate');
-                    const tbody = document.getElementById('dailyReportTable');
-                    if (!reportDateInput || !tbody) return;
-        
-                    const selectedDateStr = reportDateInput.value;
-                    if (!selectedDateStr) return;
-        
-                    const targetDate = new Date(selectedDateStr + 'T00:00:00');
-        
-                    if (!hotels || hotels.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Chưa có dữ liệu khách sạn</td></tr>`;
-                        return;
+
+                    // 2. Check-out trong ngày
+                    if (coTime === targetTime) {
+                        checkOutCount++;
                     }
-        
-                    let totalAllRooms = 0;
-                    let totalOccupied = 0;
-                    let totalCheckIn = 0;
-                    let totalCheckOut = 0;
-        
-                    const rowsHtml = hotels.map(hotel => {
-                        // 1. Lấy danh sách phòng thuộc khách sạn này
-                        const hotelRooms = rooms.filter(r => r.hotelId === hotel.id);
-                        const totalRooms = hotelRooms.length;
-                        const hotelRoomIds = hotelRooms.map(r => r.id);
-        
-                        let occupiedCount = 0;
-                        let checkInCount = 0;
-                        let checkOutCount = 0;
-        
-                        // 2. Duyệt qua tất cả booking active (không tính booking Đã hủy)
-                        bookings.forEach(b => {
-                            if (b.status === 'Đã hủy' || !hotelRoomIds.includes(b.roomId)) return;
-        
-                            const ci = new Date(b.checkIn + 'T00:00:00');
-                            const co = new Date(b.checkOut + 'T00:00:00');
-        
-                            // Check-in trong ngày
-                            if (b.checkIn === selectedDateStr) {
-                                checkInCount++;
-                            }
-        
-                            // Check-out trong ngày
-                            if (b.checkOut === selectedDateStr) {
-                                checkOutCount++;
-                            }
-        
-                            // Phòng đang ở trong ngày (Nằm trong khoảng từ Check-in đến trước Check-out)
-                            if (targetDate >= ci && targetDate < co) {
-                                occupiedCount++;
-                            }
-                        });
-        
-                        // Cộng dồn tổng toàn hệ thống
-                        totalAllRooms += totalRooms;
-                        totalOccupied += occupiedCount;
-                        totalCheckIn += checkInCount;
-                        totalCheckOut += checkOutCount;
-        
-                        // Tỷ lệ lấp đầy (%)
-                        const occupancyRate = totalRooms > 0 ? Math.round((occupiedCount / totalRooms) * 100) : 0;
-        
-                        return `
-                            <tr class="hover:bg-slate-50 border-b">
-                                <td class="p-3 font-bold text-slate-800">${hotel.name}</td>
-                                <td class="p-3 text-center">
-                                    <span class="font-bold text-blue-600">${occupiedCount}</span> / ${totalRooms}
-                                    <span class="text-[10px] text-slate-400 ml-1">(${occupancyRate}%)</span>
-                                </td>
-                                <td class="p-3 text-center">
-                                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold ${checkInCount > 0 ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400'}">
-                                        ${checkInCount}
-                                    </span>
-                                </td>
-                                <td class="p-3 text-center">
-                                    <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold ${checkOutCount > 0 ? 'bg-amber-100 text-amber-700' : 'text-slate-400'}">
-                                        ${checkOutCount}
-                                    </span>
-                                </td>
-                            </tr>
-                        `;
-                    }).join('');
-        
-                    // Dòng tổng cộng
-                    const totalRowHtml = `
-                        <tr class="bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-300">
-                            <td class="p-3">TỔNG CỘNG</td>
-                            <td class="p-3 text-center text-blue-700">${totalOccupied} / ${totalAllRooms}</td>
-                            <td class="p-3 text-center text-emerald-700">${totalCheckIn}</td>
-                            <td class="p-3 text-center text-amber-700">${totalCheckOut}</td>
-                        </tr>
-                    `;
-        
-                    tbody.innerHTML = rowsHtml + totalRowHtml;
-                }
+
+                    // 3. Phòng đang ở: Ngày chọn >= Check-in VÀ Ngày chọn < Check-out
+                    if (targetTime >= ciTime && targetTime < coTime) {
+                        occupiedCount++;
+                    }
+                });
+
+                totalAllRooms += totalRooms;
+                totalOccupied += occupiedCount;
+                totalCheckIn += checkInCount;
+                totalCheckOut += checkOutCount;
+
+                const occupancyRate = totalRooms > 0 ? Math.round((occupiedCount / totalRooms) * 100) : 0;
+
+                return `
+                    <tr class="hover:bg-slate-50 border-b">
+                        <td class="p-3 font-bold text-slate-800">${hotel.name}</td>
+                        <td class="p-3 text-center">
+                            <span class="font-bold text-blue-600">${occupiedCount}</span> / ${totalRooms}
+                            <span class="text-[10px] text-slate-400 ml-1">(${occupancyRate}%)</span>
+                        </td>
+                        <td class="p-3 text-center">
+                            <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold ${checkInCount > 0 ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400'}">
+                                ${checkInCount}
+                            </span>
+                        </td>
+                        <td class="p-3 text-center">
+                            <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold ${checkOutCount > 0 ? 'bg-amber-100 text-amber-700' : 'text-slate-400'}">
+                                ${checkOutCount}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            const totalRowHtml = `
+                <tr class="bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-300">
+                    <td class="p-3">TỔNG CỘNG</td>
+                    <td class="p-3 text-center text-blue-700">${totalOccupied} / ${totalAllRooms}</td>
+                    <td class="p-3 text-center text-emerald-700">${totalCheckIn}</td>
+                    <td class="p-3 text-center text-amber-700">${totalCheckOut}</td>
+                </tr>
+            `;
+
+            tbody.innerHTML = rowsHtml + totalRowHtml;
+            }
         
         // --- RENDER TABLES & PHÂN TRANG (PAGINATION) ---
         function renderBookingTable(targetBodyId, isManagement = false) {
