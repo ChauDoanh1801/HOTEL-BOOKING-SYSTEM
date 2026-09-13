@@ -946,74 +946,65 @@
             const reportDateInput = document.getElementById('dailyReportDate');
             const tbody = document.getElementById('dailyReportTable');
             if (!reportDateInput || !tbody) return;
-
+        
+            // Lấy đúng giá trị từ input ngày
             const selectedDateValue = reportDateInput.value; 
             if (!selectedDateValue) return;
-
+        
             const targetTime = parseAnyDateToTimestamp(selectedDateValue);
             if (!targetTime) return;
-
+        
             if (!hotels || hotels.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Chưa có dữ liệu khách sạn</td></tr>`;
                 return;
             }
-
-            console.log("--- BẮT ĐẦU TÍNH BÁO CÁO ---");
-            console.log("Ngày chọn:", selectedDateValue, "| Timestamp:", targetTime);
-
+        
             let totalAllRooms = 0;
             let totalOccupied = 0;
             let totalCheckIn = 0;
             let totalCheckOut = 0;
-
+        
             const rowsHtml = hotels.map(hotel => {
                 const currentHotelIdStr = String(hotel.id);
+                
+                // Lấy danh sách phòng thuộc khách sạn
                 const hotelRooms = rooms.filter(r => String(r.hotelId || r.hotel_id) === currentHotelIdStr);
                 const totalRooms = hotelRooms.length;
-                
-                // Gom tất cả ID phòng dạng string
-                const hotelRoomIdsStr = hotelRooms.map(r => String(r.id));
-
+        
                 let occupiedCount = 0;
                 let checkInCount = 0;
                 let checkOutCount = 0;
-
-                bookings.forEach((b, index) => {
-                    // Lấy linh hoạt roomId, checkIn, checkOut bất kể viết hoa hay có gạch dưới
-                    const rId = String(b.roomId || b.room_id || b.roomIdStr || '');
-                    const cIn = b.checkIn || b.check_in || b.startDate;
-                    const cOut = b.checkOut || b.check_out || b.endDate;
-                    const status = b.status || b.bookingStatus || '';
-
-                    // In chi tiết đối tượng booking đầu tiên để kiểm tra cấu trúc
-                    if (index === 0) {
-                        console.log("Cấu trúc 1 Booking thực tế trong CSDL:", b);
-                    }
-
+        
+                bookings.forEach(b => {
+                    // Khớp theo hotelId
+                    const bHotelId = String(b.hotelId || b.hotel_id || '');
+                    if (bHotelId !== currentHotelIdStr) return;
+        
+                    // Bỏ qua phòng hủy
+                    const status = b.status || '';
                     if (status === 'Đã hủy' || status === 'Cancelled') return;
-
-                    // Kiểm tra xem phòng có thuộc khách sạn đang duyệt không
-                    if (!hotelRoomIdsStr.includes(rId)) return;
-
+        
+                    // Đọc chính xác chữ viết thường checkin/checkout từ CSDL
+                    const cIn = b.checkin || b.checkIn || b.check_in;
+                    const cOut = b.checkout || b.checkOut || b.check_out;
+        
                     const ciTime = parseAnyDateToTimestamp(cIn);
                     const coTime = parseAnyDateToTimestamp(cOut);
-
+        
                     if (!ciTime || !coTime) return;
-
-                    console.log(`-> MATCH! Room: ${rId} | CheckIn: ${cIn} | CheckOut: ${cOut}`);
-
+        
                     if (ciTime === targetTime) checkInCount++;
                     if (coTime === targetTime) checkOutCount++;
                     if (targetTime >= ciTime && targetTime < coTime) occupiedCount++;
                 });
-
+        
                 totalAllRooms += totalRooms;
                 totalOccupied += occupiedCount;
                 totalCheckIn += checkInCount;
                 totalCheckOut += checkOutCount;
-
+        
                 const occupancyRate = totalRooms > 0 ? Math.round((occupiedCount / totalRooms) * 100) : 0;
-
+        
                 return `
                     <tr class="hover:bg-slate-50 border-b">
                         <td class="p-3 font-bold text-slate-800">${hotel.name}</td>
@@ -1034,7 +1025,7 @@
                     </tr>
                 `;
             }).join('');
-
+        
             const totalRowHtml = `
                 <tr class="bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-300">
                     <td class="p-3">TỔNG CỘNG</td>
@@ -1043,9 +1034,9 @@
                     <td class="p-3 text-center text-amber-700">${totalCheckOut}</td>
                 </tr>
             `;
-
+        
             tbody.innerHTML = rowsHtml + totalRowHtml;
-        }
+        } 
         
         // --- RENDER TABLES & PHÂN TRANG (PAGINATION) ---
         function renderBookingTable(targetBodyId, isManagement = false) {
