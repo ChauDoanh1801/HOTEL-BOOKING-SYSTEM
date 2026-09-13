@@ -893,7 +893,19 @@
             }
         }
 
-        // --- HÀM CHUYỂN MỌI DẠNG NGÀY VỀ TIMESTAMP ---
+    // --- HÀM KHỞI TẠO NGÀY MẶC ĐỊNH (SỬA LỖI ReferenceError) ---
+        function initDailyReportDate() {
+            const dateInput = document.getElementById('dailyReportDate');
+            if (dateInput && !dateInput.value) {
+                const d = new Date();
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                dateInput.value = `${year}-${month}-${day}`;
+            }
+        }
+
+        // --- HÀM HỖ TRỢ CHUYỂN DẠNG NGÀY CHUẨN MỌI ĐỊNH DẠNG ---
         function parseAnyDateToTimestamp(dateStr) {
             if (!dateStr) return null;
             let year, month, day;
@@ -923,7 +935,7 @@
             return new Date(year, month, day, 0, 0, 0, 0).getTime();
         }
 
-        // --- HÀM RENDER BÁO CÁO (ĐÃ CHUẨN HÓA STRING ID KHÔNG LO ÉP KIỂU) ---
+        // --- HÀM RENDER BÁO CÁO HOÀN CHỈNH ---
         function renderDailyReport() {
             const reportDateInput = document.getElementById('dailyReportDate');
             const tbody = document.getElementById('dailyReportTable');
@@ -946,14 +958,9 @@
             let totalCheckOut = 0;
 
             const rowsHtml = hotels.map(hotel => {
-                // ép kiểu hotel.id về String
                 const currentHotelIdStr = String(hotel.id);
-
-                // Lấy phòng thuộc khách sạn (ép kiểu hotelId về String để so sánh)
                 const hotelRooms = rooms.filter(r => String(r.hotelId) === currentHotelIdStr);
                 const totalRooms = hotelRooms.length;
-                
-                // Mảng chứa các roomId dạng Chuỗi (String)
                 const hotelRoomIdsStr = hotelRooms.map(r => String(r.id));
 
                 let occupiedCount = 0;
@@ -961,10 +968,8 @@
                 let checkOutCount = 0;
 
                 bookings.forEach(b => {
-                    // Chuyển b.roomId về String để so sánh chính xác với hotelRoomIdsStr
                     const bookingRoomIdStr = String(b.roomId);
 
-                    // Bỏ qua nếu bị Hủy hoặc không thuộc Khách sạn này
                     if (b.status === 'Đã hủy' || !hotelRoomIdsStr.includes(bookingRoomIdStr)) return;
 
                     const ciTime = parseAnyDateToTimestamp(b.checkIn);
@@ -972,13 +977,8 @@
 
                     if (!ciTime || !coTime) return;
 
-                    // Check-in trong ngày
                     if (ciTime === targetTime) checkInCount++;
-
-                    // Check-out trong ngày
                     if (coTime === targetTime) checkOutCount++;
-
-                    // Phòng đang ở (Ngày chọn >= Check-in VÀ Ngày chọn < Check-out)
                     if (targetTime >= ciTime && targetTime < coTime) occupiedCount++;
                 });
 
