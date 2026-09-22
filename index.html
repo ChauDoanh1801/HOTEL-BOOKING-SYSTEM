@@ -1102,12 +1102,10 @@
         }
 
 function renderPaginationControls(isManagement, totalItems, totalPages, currentPage) {
-    // Khớp đúng ID thẻ div trong file HTML của bạn
     const containerId = isManagement ? 'pgManagementControls' : 'pgBookingControls';
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    // Nếu không có dữ liệu
     if (totalItems === 0) {
         container.innerHTML = '';
         return;
@@ -1116,33 +1114,44 @@ function renderPaginationControls(isManagement, totalItems, totalPages, currentP
     const startItem = (currentPage - 1) * rowsPerPage + 1;
     const endItem = Math.min(currentPage * rowsPerPage, totalItems);
 
-    // Thuật toán tạo số trang thu gọn
+    // Thuật toán tối giản: [1] ... [Trang hiện tại] ... [Trang cuối]
     let pageNumbers = [];
-    if (totalPages <= 7) {
+    if (totalPages <= 3) {
+        // Nếu tổng số trang <= 3, hiện tất cả các trang
         for (let i = 1; i <= totalPages; i++) pageNumbers.push(i);
     } else {
+        // 1. Luôn thêm trang 1
         pageNumbers.push(1);
-        if (currentPage > 3) pageNumbers.push('...');
 
-        let start = Math.max(2, currentPage - 1);
-        let end = Math.min(totalPages - 1, currentPage + 1);
+        // 2. Thêm dấu ... nếu trang hiện tại > 2
+        if (currentPage > 2) {
+            pageNumbers.push('...');
+        }
 
-        for (let i = start; i <= end; i++) pageNumbers.push(i);
+        // 3. Thêm trang hiện tại (nếu nó không phải trang 1 và không phải trang cuối)
+        if (currentPage !== 1 && currentPage !== totalPages) {
+            pageNumbers.push(currentPage);
+        }
 
-        if (currentPage < totalPages - 2) pageNumbers.push('...');
+        // 4. Thêm dấu ... nếu trang hiện tại < totalPages - 1
+        if (currentPage < totalPages - 1) {
+            pageNumbers.push('...');
+        }
+
+        // 5. Luôn thêm trang cuối
         pageNumbers.push(totalPages);
     }
 
-    // Tạo HTML danh sách nút số
+    // Tạo HTML danh sách nút bấm
     let buttonsHtml = pageNumbers.map(p => {
         if (p === '...') {
-            return `<span class="px-2 py-1 text-slate-400">...</span>`;
+            return `<span class="px-1.5 py-1 text-slate-400 select-none">...</span>`;
         }
         const isActive = p === currentPage;
         return `
             <button 
                 onclick="changeTablePage(${isManagement}, ${p})" 
-                class="px-2.5 py-1 rounded border font-medium transition-colors ${
+                class="px-2.5 py-1 text-xs rounded border font-medium transition-colors ${
                     isActive 
                     ? 'bg-blue-600 text-white border-blue-600' 
                     : 'border-slate-300 text-slate-700 hover:bg-slate-100'
@@ -1153,36 +1162,41 @@ function renderPaginationControls(isManagement, totalItems, totalPages, currentP
         `;
     }).join('');
 
-    // Nút Prev (<) và Next (>)
+    // Nút Lùi (<)
     const prevBtn = `
         <button 
             onclick="changeTablePage(${isManagement}, ${currentPage - 1})" 
             ${currentPage === 1 ? 'disabled' : ''} 
-            class="px-2 py-1 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            class="px-2 py-1 text-xs rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Trang trước"
         >
             <i class="fa-solid fa-chevron-left"></i>
         </button>
     `;
 
+    // Nút Tiếp (>)
     const nextBtn = `
         <button 
             onclick="changeTablePage(${isManagement}, ${currentPage + 1})" 
             ${currentPage === totalPages ? 'disabled' : ''} 
-            class="px-2 py-1 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            class="px-2 py-1 text-xs rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Trang sau"
         >
             <i class="fa-solid fa-chevron-right"></i>
         </button>
     `;
 
-    // Xuất ra giao diện HTML
+    // Xuất ra HTML đã được canh chỉnh tối ưu co giãn (flex-wrap) cho di động
     container.innerHTML = `
-        <div>
-            Hiển thị <b>${startItem} - ${endItem}</b> trên tổng số <b>${totalItems}</b> booking
-        </div>
-        <div class="flex items-center gap-1 flex-wrap justify-end">
-            ${prevBtn}
-            ${buttonsHtml}
-            ${nextBtn}
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-600 w-full">
+            <div class="text-center sm:text-left">
+                Hiển thị <b>${startItem} - ${endItem}</b> / <b>${totalItems}</b>
+            </div>
+            <div class="flex items-center gap-1 justify-center">
+                ${prevBtn}
+                ${buttonsHtml}
+                ${nextBtn}
+            </div>
         </div>
     `;
 }
