@@ -647,6 +647,7 @@
                 // Quản lý Phân trang
                 let currentPageBooking = 1;
                 let currentPageMgt = 1;
+                let currentPageRevenue = 1;
                 const rowsPerPage = 10;
         
                 // --- APP STARTUP ---
@@ -1101,8 +1102,19 @@
             renderPaginationControls(isManagement, filtered.length, totalPages, currentPage);
         }
 
-function renderPaginationControls(isManagement, totalItems, totalPages, currentPage) {
-    const containerId = isManagement ? 'pgManagementControls' : 'pgBookingControls';
+function renderPaginationControls(type, totalItems, totalPages, currentPage) {
+    // 1. Nhận diện ID container theo khu vực
+    let containerId = 'pgBookingControls';
+    let typeParam = "'booking'";
+
+    if (type === 'mgt' || type === true) {
+        containerId = 'pgManagementControls';
+        typeParam = "'mgt'";
+    } else if (type === 'revenue') {
+        containerId = 'pgRevenueControls';
+        typeParam = "'revenue'";
+    }
+
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -1114,35 +1126,19 @@ function renderPaginationControls(isManagement, totalItems, totalPages, currentP
     const startItem = (currentPage - 1) * rowsPerPage + 1;
     const endItem = Math.min(currentPage * rowsPerPage, totalItems);
 
-    // Thuật toán tối giản: [1] ... [Trang hiện tại] ... [Trang cuối]
+    // 2. Thuật toán phân trang tối giản cho mobile: [1] ... [Hiện tại] ... [Cuối]
     let pageNumbers = [];
     if (totalPages <= 3) {
-        // Nếu tổng số trang <= 3, hiện tất cả các trang
         for (let i = 1; i <= totalPages; i++) pageNumbers.push(i);
     } else {
-        // 1. Luôn thêm trang 1
         pageNumbers.push(1);
-
-        // 2. Thêm dấu ... nếu trang hiện tại > 2
-        if (currentPage > 2) {
-            pageNumbers.push('...');
-        }
-
-        // 3. Thêm trang hiện tại (nếu nó không phải trang 1 và không phải trang cuối)
-        if (currentPage !== 1 && currentPage !== totalPages) {
-            pageNumbers.push(currentPage);
-        }
-
-        // 4. Thêm dấu ... nếu trang hiện tại < totalPages - 1
-        if (currentPage < totalPages - 1) {
-            pageNumbers.push('...');
-        }
-
-        // 5. Luôn thêm trang cuối
+        if (currentPage > 2) pageNumbers.push('...');
+        if (currentPage !== 1 && currentPage !== totalPages) pageNumbers.push(currentPage);
+        if (currentPage < totalPages - 1) pageNumbers.push('...');
         pageNumbers.push(totalPages);
     }
 
-    // Tạo HTML danh sách nút bấm
+    // 3. Tạo nút bấm
     let buttonsHtml = pageNumbers.map(p => {
         if (p === '...') {
             return `<span class="px-1.5 py-1 text-slate-400 select-none">...</span>`;
@@ -1150,7 +1146,7 @@ function renderPaginationControls(isManagement, totalItems, totalPages, currentP
         const isActive = p === currentPage;
         return `
             <button 
-                onclick="changeTablePage(${isManagement}, ${p})" 
+                onclick="changeTablePage(${typeParam}, ${p})" 
                 class="px-2.5 py-1 text-xs rounded border font-medium transition-colors ${
                     isActive 
                     ? 'bg-blue-600 text-white border-blue-600' 
@@ -1162,31 +1158,26 @@ function renderPaginationControls(isManagement, totalItems, totalPages, currentP
         `;
     }).join('');
 
-    // Nút Lùi (<)
     const prevBtn = `
         <button 
-            onclick="changeTablePage(${isManagement}, ${currentPage - 1})" 
+            onclick="changeTablePage(${typeParam}, ${currentPage - 1})" 
             ${currentPage === 1 ? 'disabled' : ''} 
             class="px-2 py-1 text-xs rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Trang trước"
         >
             <i class="fa-solid fa-chevron-left"></i>
         </button>
     `;
 
-    // Nút Tiếp (>)
     const nextBtn = `
         <button 
-            onclick="changeTablePage(${isManagement}, ${currentPage + 1})" 
+            onclick="changeTablePage(${typeParam}, ${currentPage + 1})" 
             ${currentPage === totalPages ? 'disabled' : ''} 
             class="px-2 py-1 text-xs rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Trang sau"
         >
             <i class="fa-solid fa-chevron-right"></i>
         </button>
     `;
 
-    // Xuất ra HTML đã được canh chỉnh tối ưu co giãn (flex-wrap) cho di động
     container.innerHTML = `
         <div class="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-600 w-full">
             <div class="text-center sm:text-left">
@@ -1201,10 +1192,15 @@ function renderPaginationControls(isManagement, totalItems, totalPages, currentP
     `;
 }
 
-function changeTablePage(isManagement, newPage) {
-    if (isManagement) {
+
+function changeTablePage(type, newPage) {
+    if (type === 'mgt' || type === true) {
         currentPageMgt = newPage;
         renderBookingTable('tabManagementTable', true);
+    } else if (type === 'revenue') {
+        currentPageRevenue = newPage;
+        generateReport();
+        if (typeof renderReportTable === 'function') renderReportTable();
     } else {
         currentPageBooking = newPage;
         renderBookingTable('tabBookingTable', false);
@@ -1323,29 +1319,44 @@ function changeTablePage(isManagement, newPage) {
             });
         }
 
-        function generateReport() {
-            const filtered = getFilteredReports();
+function generateReport() {
+    const filtered = getFilteredReports();
 
-            const totalRev = filtered
-                .filter(b => !b.status.toLowerCase().includes('hủy'))
-                .reduce((sum, b) => sum + (b.total - b.discount), 0);
+    // 1. Tính tổng doanh thu (giữ nguyên logic cũ của bạn)
+    const totalRev = filtered
+        .filter(b => !b.status.toLowerCase().includes('hủy'))
+        .reduce((sum, b) => sum + (b.total - b.discount), 0);
 
-            document.getElementById('rptTotalRevenue').innerText = totalRev.toLocaleString('vi-VN') + ' VNĐ';
+    document.getElementById('rptTotalRevenue').innerText = totalRev.toLocaleString('vi-VN') + ' VNĐ';
 
-            const tbody = document.getElementById('rptTable');
-            tbody.innerHTML = filtered.map(b => `
-                <tr class="hover:bg-slate-50 border-b">
-                    <td class="p-2.5 font-bold">${b.code}</td>
-                    <td class="p-2.5">${b.hotelName}</td>
-                    <td class="p-2.5 font-semibold">${b.guestName}</td>
-                    <td class="p-2.5">${b.checkin}</td>
-                    <td class="p-2.5">${b.checkout}</td>
-                    <td class="p-2.5 font-bold text-blue-600">${b.total.toLocaleString('vi-VN')}đ</td>
-                    <td class="p-2.5">${getStatusBadgeHtml(b.status)}</td>
-                </tr>
-            `).join('');
-        }
+    // 2. Xử lý phân trang cho danh sách Báo cáo
+    const totalPages = Math.ceil(filtered.length / rowsPerPage) || 1;
+    if (currentPageRevenue > totalPages) currentPageRevenue = totalPages;
 
+    const startIdx = (currentPageRevenue - 1) * rowsPerPage;
+    const paginatedItems = filtered.slice(startIdx, startIdx + rowsPerPage);
+
+    // 3. Hiển thị dữ liệu đã cắt trang vào tbody
+    const tbody = document.getElementById('rptTable');
+    if (paginatedItems.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400">Không có dữ liệu báo cáo phù hợp</td></tr>`;
+    } else {
+        tbody.innerHTML = paginatedItems.map(b => `
+            <tr class="hover:bg-slate-50 border-b">
+                <td class="p-2.5 font-bold">${b.code}</td>
+                <td class="p-2.5">${b.hotelName}</td>
+                <td class="p-2.5 font-semibold">${b.guestName}</td>
+                <td class="p-2.5">${b.checkin}</td>
+                <td class="p-2.5">${b.checkout}</td>
+                <td class="p-2.5 font-bold text-blue-600">${b.total.toLocaleString('vi-VN')}đ</td>
+                <td class="p-2.5">${getStatusBadgeHtml(b.status)}</td>
+            </tr>
+        `).join('');
+    }
+
+    // 4. BƯỚC 4: Gọi hàm vẽ nút phân trang ở ngay đây
+    renderPaginationControls('revenue', filtered.length, totalPages, currentPageRevenue);
+}
         function exportReportExcel() {
             const filtered = getFilteredReports();
             if (filtered.length === 0) {
