@@ -1408,53 +1408,52 @@
             }
         });
 
-// Đưa hàm changeCalendarMonth ra phạm vi toàn cục với Debug Logs
+// Đưa hàm changeCalendarMonth ra phạm vi toàn cục
 window.changeCalendarMonth = function(offset) {
     console.log("=== BẮT ĐẦU CHUYỂN THÁNG ===");
-    console.log("Giá trị offset bấm:", offset);
 
-    // 1. Cập nhật mốc thời gian
-    if (typeof currentDate !== 'undefined' && currentDate instanceof Date) {
-        currentDate.setMonth(currentDate.getMonth() + offset);
-        console.log("Đã cập nhật currentDate thành:", currentDate);
-    } else if (typeof currentCalendarDate !== 'undefined' && currentCalendarDate instanceof Date) {
-        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + offset);
-        console.log("Đã cập nhật currentCalendarDate thành:", currentCalendarDate);
+    // 1. Tìm biến ngày mà hệ thống đang sử dụng
+    let targetDate = null;
+    if (typeof currentCalendarDate !== 'undefined' && currentCalendarDate instanceof Date) {
+        targetDate = currentCalendarDate;
+    } else if (typeof currentDate !== 'undefined' && currentDate instanceof Date) {
+        targetDate = currentDate;
     } else {
-        window.currentDate = new Date();
-        window.currentDate.setMonth(window.currentDate.getMonth() + offset);
-        console.log("Khởi tạo và cập nhật window.currentDate thành:", window.currentDate);
+        window.currentCalendarDate = new Date();
+        window.currentDate = window.currentCalendarDate;
+        targetDate = window.currentCalendarDate;
     }
 
-    // 2. Cập nhật biến year/month độc lập (nếu có)
-    if (typeof currentDate !== 'undefined') {
-        if (typeof year !== 'undefined') window.year = currentDate.getFullYear();
-        if (typeof month !== 'undefined') window.month = currentDate.getMonth();
-    }
+    // 2. Tăng/Giảm tháng
+    targetDate.setMonth(targetDate.getMonth() + offset);
 
-    // 3. Gọi hàm vẽ lại lịch
+    // 3. Đồng bộ lại cho TẤT CẢ các biến ngày tháng có trong hệ thống
+    window.currentCalendarDate = new Date(targetDate);
+    window.currentDate = new Date(targetDate);
+    if (typeof year !== 'undefined') window.year = targetDate.getFullYear();
+    if (typeof month !== 'undefined') window.month = targetDate.getMonth();
+    if (typeof currentYear !== 'undefined') window.currentYear = targetDate.getFullYear();
+    if (typeof currentMonth !== 'undefined') window.currentMonth = targetDate.getMonth();
+
+    // 4. Render lại lịch
     if (typeof renderCalendar === 'function') {
-        console.log("Đang gọi hàm renderCalendar()...");
         renderCalendar();
-    } else {
-        console.error("LỖI: Không tìm thấy hàm renderCalendar()!");
     }
 };
 
-// Đưa hàm resetCalendarToToday ra phạm vi toàn cục với Debug Logs
+// Đưa hàm resetCalendarToToday ra phạm vi toàn cục
 window.resetCalendarToToday = function() {
-    console.log("=== VỀ HÔM NAY ===");
     const now = new Date();
 
-    if (typeof currentDate !== 'undefined') currentDate = new Date(now);
-    if (typeof currentCalendarDate !== 'undefined') currentCalendarDate = new Date(now);
+    window.currentCalendarDate = new Date(now);
+    window.currentDate = new Date(now);
     if (typeof year !== 'undefined') window.year = now.getFullYear();
     if (typeof month !== 'undefined') window.month = now.getMonth();
+    if (typeof currentYear !== 'undefined') window.currentYear = now.getFullYear();
+    if (typeof currentMonth !== 'undefined') window.currentMonth = now.getMonth();
 
     if (typeof renderCalendar === 'function') {
         renderCalendar();
-    } else {
-        console.error("LỖI: Không tìm thấy hàm renderCalendar()!");
     }
 };
         
