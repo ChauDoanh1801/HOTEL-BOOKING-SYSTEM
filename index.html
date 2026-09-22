@@ -1408,32 +1408,128 @@
             }
         });
 
-// Đưa hàm changeCalendarMonth ra phạm vi toàn cục
-window.changeCalendarMonth = function(offset) {
-    if (typeof currentCalDate === 'undefined' || !(currentCalDate instanceof Date)) {
-        window.currentCalDate = new Date();
-    }
+        // ==========================================
+        // 1. SỬA TRIỆT ĐỂ NÚT CHUYỂN THÁNG VÀ HÔM NAY
+        // ==========================================
+        window.changeCalendarMonth = function(offset) {
+            console.log("--> [DEBUG] Bấm chuyển tháng với offset:", offset);
+            
+            if (typeof currentCalDate === 'undefined' || !(currentCalDate instanceof Date)) {
+                window.currentCalDate = new Date();
+            }
 
-    currentCalDate.setMonth(currentCalDate.getMonth() + offset);
+            currentCalDate.setMonth(currentCalDate.getMonth() + offset);
+            console.log("--> [DEBUG] Tháng sau khi đổi:", currentCalDate.getMonth() + 1, "Năm:", currentCalDate.getFullYear());
 
-    if (typeof renderCalendar === 'function') renderCalendar();
-    if (typeof renderDailyReport === 'function') renderDailyReport();
-};
+            if (typeof renderCalendar === 'function') renderCalendar();
+            if (typeof renderDailyReport === 'function') renderDailyReport();
+        };
 
-// Đưa hàm resetCalendarToToday ra phạm vi toàn cục
-window.resetCalendarToToday = function() {
-    const today = new Date();
+        window.resetCalendarToToday = function() {
+            console.log("--> [DEBUG] Bấm nút HÔM NAY");
+            const now = new Date();
 
-    // Reset tất cả các biến mốc thời gian về hôm nay
-    window.currentCalDate = new Date(today);
-    if (typeof currentDate !== 'undefined') {
-        window.currentDate = new Date(today);
-    }
+            // Gán lại biến toàn cục gốc
+            window.currentCalDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            if (typeof currentDate !== 'undefined') {
+                window.currentDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            }
 
-    // Render lại lịch và báo cáo ngày
-    if (typeof renderCalendar === 'function') renderCalendar();
-    if (typeof renderDailyReport === 'function') renderDailyReport();
-};
+            console.log("--> [DEBUG] Đã reset currentCalDate về:", window.currentCalDate);
+
+            if (typeof renderCalendar === 'function') renderCalendar();
+            if (typeof renderDailyReport === 'function') renderDailyReport();
+        };
+
+        // ==========================================
+        // 2. SỬA TRIỆT ĐỂ LỖI HIỂN THỊ MODAL BOOKING
+        // ==========================================
+        document.addEventListener('click', function(e) {
+            const card = e.target.closest('.booking-card');
+            if (card) {
+                const bookingId = card.getAttribute('data-id');
+                console.log("--> [DEBUG] Click vào thẻ booking ID:", bookingId);
+
+                const booking = bookings.find(b => b.id == bookingId || b.code == bookingId);
+                if (!booking) {
+                    console.error("--> [DEBUG] Không tìm thấy dữ liệu booking cho ID:", bookingId);
+                    return;
+                }
+
+                // Cách 1: Gọi hàm showBookingDetails hoặc viewBookingDetail nếu có sẵn trong hệ thống
+                if (typeof showBookingDetails === 'function') {
+                    showBookingDetails(bookingId);
+                    return;
+                }
+                if (typeof viewBookingDetail === 'function') {
+                    viewBookingDetail(bookingId);
+                    return;
+                }
+                if (typeof openBookingModal === 'function') {
+                    openBookingModal(booking);
+                    return;
+                }
+
+                // Cách 2: Tự tạo Modal chuẩn căn giữa màn hình (Fix lỗi hiển thị sai vị trí)
+                let modal = document.getElementById('customBookingModal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'customBookingModal';
+                    // Đặt CSS căn giữa tuyệt đối
+                    modal.className = 'fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm';
+                    document.body.appendChild(modal);
+                }
+
+                modal.innerHTML = `
+                    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative animate-fade-in text-slate-800">
+                        <button onclick="document.getElementById('customBookingModal').remove()" 
+                                class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+                        
+                        <h3 class="text-lg font-bold text-blue-600 mb-4 border-b pb-2 flex items-center gap-2">
+                            <span>📋</span> THÔNG TIN BOOKING
+                        </h3>
+                        
+                        <div class="space-y-2.5 text-sm">
+                            <div class="flex justify-between border-b pb-1">
+                                <span class="text-slate-500 font-medium">Mã Booking:</span>
+                                <span class="font-bold text-slate-900">${booking.code || '---'}</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1">
+                                <span class="text-slate-500 font-medium">Khách hàng:</span>
+                                <span class="font-bold text-slate-900">${booking.guestName || '---'}</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1">
+                                <span class="text-slate-500 font-medium">SĐT / CCCD:</span>
+                                <span class="font-semibold text-slate-800">${booking.cccd || booking.phone || '---'}</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1">
+                                <span class="text-slate-500 font-medium">Loại phòng:</span>
+                                <span class="font-semibold text-blue-600">${booking.roomType || '---'}</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1">
+                                <span class="text-slate-500 font-medium">Check-in:</span>
+                                <span class="font-medium text-slate-800">${booking.checkin || '---'}</span>
+                            </div>
+                            <div class="flex justify-between border-b pb-1">
+                                <span class="text-slate-500 font-medium">Check-out:</span>
+                                <span class="font-medium text-slate-800">${booking.checkout || '---'}</span>
+                            </div>
+                            <div class="flex justify-between pt-1">
+                                <span class="text-slate-500 font-medium">Trạng thái:</span>
+                                <span class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700">${booking.status || 'Đã xác nhận'}</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 flex justify-end">
+                            <button onclick="document.getElementById('customBookingModal').remove()" 
+                                    class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
+                                Đóng
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        });
         
     </script>
 </body>
