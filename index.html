@@ -1403,32 +1403,47 @@
             } else if (typeof viewBooking === 'function') {
                 viewBooking(bookingId);
             } else {
-                // Trường hợp không tìm thấy hàm modal nào, hiển thị thông báo chi tiết cơ bản
+            // Trường hợp không tìm thấy hàm modal nào, hiển thị thông báo chi tiết cơ bản
                 alert(`THÔNG TIN BOOKING:\nMã: ${booking.code || ''}\nKhách hàng: ${booking.guestName || ''}\nSĐT/CCCD: ${booking.cccd || ''}\nLoại phòng: ${booking.roomType || ''}\nCheck-in: ${booking.checkin || ''}\nCheck-out: ${booking.checkout || ''}\nTrạng thái: ${booking.status || ''}`);
             }
         });
 
-        // Đưa hàm changeCalendarMonth ra phạm vi toàn cục (window)
-        window.changeCalendarMonth = function(offset) {
-            if (typeof currentCalendarDate === 'undefined') {
-                window.currentCalendarDate = new Date();
-            }
-            // Lùi hoặc tiến tháng
-            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + offset);
+            // Đưa hàm changeCalendarMonth ra phạm vi toàn cục (window)
+            window.changeCalendarMonth = function(offset) {
+                // 1. Kiểm tra và cập nhật biến ngày đang dùng trong hệ thống
+                if (typeof currentDate !== 'undefined' && currentDate instanceof Date) {
+                    currentDate.setMonth(currentDate.getMonth() + offset);
+                } else if (typeof currentCalendarDate !== 'undefined' && currentCalendarDate instanceof Date) {
+                    currentCalendarDate.setMonth(currentCalendarDate.getMonth() + offset);
+                } else {
+                    window.currentDate = new Date();
+                    window.currentDate.setMonth(window.currentDate.getMonth() + offset);
+                }
+    
+                // 2. Nếu hệ thống dùng biến year/month riêng lẻ
+                if (typeof currentDate !== 'undefined') {
+                    if (typeof year !== 'undefined') window.year = currentDate.getFullYear();
+                    if (typeof month !== 'undefined') window.month = currentDate.getMonth();
+                }
+    
+                // 3. Render lại lịch và báo cáo
+                if (typeof renderCalendar === 'function') renderCalendar();
+                if (typeof renderDailyReport === 'function') renderDailyReport();
+            };
             
-            // Gọi lại hàm render lịch và báo cáo ngày (nếu có)
-            if (typeof renderCalendar === 'function') renderCalendar();
-            if (typeof renderDailyReport === 'function') renderDailyReport();
-        };
-        
-        // Đưa hàm resetCalendarToToday ra phạm vi toàn cục (window)
-        window.resetCalendarToToday = function() {
-            window.currentCalendarDate = new Date();
-            
-            // Gọi lại hàm render lịch và báo cáo ngày
-            if (typeof renderCalendar === 'function') renderCalendar();
-            if (typeof renderDailyReport === 'function') renderDailyReport();
-        };
+            // Đưa hàm resetCalendarToToday ra phạm vi toàn cục (window)
+            window.resetCalendarToToday = function() {
+                const now = new Date();
+    
+                if (typeof currentDate !== 'undefined') currentDate = new Date(now);
+                if (typeof currentCalendarDate !== 'undefined') currentCalendarDate = new Date(now);
+                if (typeof year !== 'undefined') window.year = now.getFullYear();
+                if (typeof month !== 'undefined') window.month = now.getMonth();
+                
+                // Render lại lịch và báo cáo
+                if (typeof renderCalendar === 'function') renderCalendar();
+                if (typeof renderDailyReport === 'function') renderDailyReport();
+            };
         
     </script>
 </body>
