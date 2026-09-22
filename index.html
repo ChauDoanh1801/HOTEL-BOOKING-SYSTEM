@@ -1410,23 +1410,27 @@
 
 // Đưa hàm changeCalendarMonth ra phạm vi toàn cục
 window.changeCalendarMonth = function(offset) {
-    // 1. Kiểm tra và khởi tạo biến currentCalDate nếu chưa có
     if (typeof currentCalDate === 'undefined' || !(currentCalDate instanceof Date)) {
         window.currentCalDate = new Date();
     }
 
-    // 2. Tăng / Giảm tháng trên đúng biến currentCalDate
     currentCalDate.setMonth(currentCalDate.getMonth() + offset);
 
-    // 3. Render lại lịch và báo cáo ngày
     if (typeof renderCalendar === 'function') renderCalendar();
     if (typeof renderDailyReport === 'function') renderDailyReport();
 };
 
 // Đưa hàm resetCalendarToToday ra phạm vi toàn cục
 window.resetCalendarToToday = function() {
-    window.currentCalDate = new Date();
+    const today = new Date();
 
+    // Reset tất cả các biến mốc thời gian về hôm nay
+    window.currentCalDate = new Date(today);
+    if (typeof currentDate !== 'undefined') {
+        window.currentDate = new Date(today);
+    }
+
+    // Render lại lịch và báo cáo ngày
     if (typeof renderCalendar === 'function') renderCalendar();
     if (typeof renderDailyReport === 'function') renderDailyReport();
 };
