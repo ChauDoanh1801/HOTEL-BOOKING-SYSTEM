@@ -701,7 +701,7 @@
                 };
         
                 document.getElementById('userInfoDisplay').innerHTML = 
-                    `<i class="fa-solid fa-user-circle text-blue-600 mr-1"></i> ${currentAuth.name} (${currentAuth.role.toUpperCase()})`;
+                    `<i class="fa-solid fa-user-circle text-blue-600 mr-1"></i> ${currentAuth.name.toUpperCase()}`;
         
                 if (currentAuth.role === 'user') {
                     document.getElementById('nav-management').style.display = 'none';
