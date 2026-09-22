@@ -365,6 +365,8 @@
                             <!-- JS Render -->
                         </tbody>
                     </table>
+                    <!-- Phân trang cho Báo cáo & Doanh thu -->
+                    <div id="pgRevenueControls" class="flex justify-between items-center mt-4 pt-3 border-t text-xs"></div>
                 </div>
             </div>
         </div>
@@ -579,7 +581,7 @@
     </div>
 
 
-    <!-- JAVASCRIPT SYSTEM ENGINE -->
+<!-- JAVASCRIPT SYSTEM ENGINE -->
     <script>
         // Khai báo hàm rỗng để tránh lỗi "is not defined" làm sập ứng dụng
         function checkAuthUI() {
@@ -952,7 +954,7 @@
             return new Date(year, month, day, 0, 0, 0, 0).getTime();
         }
 
-        // --- HÀM RENDER BÁO CÁO HOÀN CHỈNH ---
+        // --- HÀM RENDER BÁO CÁO DAILY HOÀN CHỈNH ---
         function renderDailyReport() {
             const reportDateInput = document.getElementById('dailyReportDate');
             const tbody = document.getElementById('dailyReportTable');
@@ -1099,44 +1101,101 @@
             renderPaginationControls(isManagement, filtered.length, totalPages, currentPage);
         }
 
-        function renderPaginationControls(isManagement, totalItems, totalPages, currentPage) {
-            const containerId = isManagement ? 'pgManagementControls' : 'pgBookingControls';
-            const container = document.getElementById(containerId);
-            if (!container) return;
+function renderPaginationControls(isManagement, totalItems, totalPages, currentPage) {
+    // Khớp đúng ID thẻ div trong file HTML của bạn
+    const containerId = isManagement ? 'pgManagementControls' : 'pgBookingControls';
+    const container = document.getElementById(containerId);
+    if (!container) return;
 
-            let btnsHtml = '';
-            for (let i = 1; i <= totalPages; i++) {
-                btnsHtml += `
-                    <button onclick="changeTablePage(${isManagement}, ${i})" 
-                            class="px-2.5 py-1 rounded border text-xs font-semibold ${i === currentPage ? 'bg-blue-600 text-white border-blue-600' : 'bg-white hover:bg-slate-50 text-slate-700'}">
-                        ${i}
-                    </button>
-                `;
-            }
+    // Nếu không có dữ liệu
+    if (totalItems === 0) {
+        container.innerHTML = '';
+        return;
+    }
 
-            container.innerHTML = `
-                <div class="text-slate-500">Hiển thị <b>${totalItems === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}</b> - <b>${Math.min(currentPage * rowsPerPage, totalItems)}</b> trên tổng số <b>${totalItems}</b> booking</div>
-                <div class="flex items-center gap-1">
-                    <button onclick="changeTablePage(${isManagement}, ${currentPage - 1})" ${currentPage === 1 ? 'disabled class="px-2 py-1 border rounded text-slate-300 cursor-not-allowed"' : 'class="px-2 py-1 border rounded hover:bg-slate-50 text-slate-700 font-bold"'}>
-                        <i class="fa-solid fa-chevron-left"></i>
-                    </button>
-                    ${btnsHtml}
-                    <button onclick="changeTablePage(${isManagement}, ${currentPage + 1})" ${currentPage === totalPages ? 'disabled class="px-2 py-1 border rounded text-slate-300 cursor-not-allowed"' : 'class="px-2 py-1 border rounded hover:bg-slate-50 text-slate-700 font-bold"'}>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </button>
-                </div>
-            `;
+    const startItem = (currentPage - 1) * rowsPerPage + 1;
+    const endItem = Math.min(currentPage * rowsPerPage, totalItems);
+
+    // Thuật toán tạo số trang thu gọn
+    let pageNumbers = [];
+    if (totalPages <= 7) {
+        for (let i = 1; i <= totalPages; i++) pageNumbers.push(i);
+    } else {
+        pageNumbers.push(1);
+        if (currentPage > 3) pageNumbers.push('...');
+
+        let start = Math.max(2, currentPage - 1);
+        let end = Math.min(totalPages - 1, currentPage + 1);
+
+        for (let i = start; i <= end; i++) pageNumbers.push(i);
+
+        if (currentPage < totalPages - 2) pageNumbers.push('...');
+        pageNumbers.push(totalPages);
+    }
+
+    // Tạo HTML danh sách nút số
+    let buttonsHtml = pageNumbers.map(p => {
+        if (p === '...') {
+            return `<span class="px-2 py-1 text-slate-400">...</span>`;
         }
+        const isActive = p === currentPage;
+        return `
+            <button 
+                onclick="changeTablePage(${isManagement}, ${p})" 
+                class="px-2.5 py-1 rounded border font-medium transition-colors ${
+                    isActive 
+                    ? 'bg-blue-600 text-white border-blue-600' 
+                    : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                }"
+            >
+                ${p}
+            </button>
+        `;
+    }).join('');
 
-        function changeTablePage(isManagement, newPage) {
-            if (isManagement) {
-                currentPageMgt = newPage;
-                renderBookingTable('tabManagementTable', true);
-            } else {
-                currentPageBooking = newPage;
-                renderBookingTable('tabBookingTable', false);
-            }
-        }
+    // Nút Prev (<) và Next (>)
+    const prevBtn = `
+        <button 
+            onclick="changeTablePage(${isManagement}, ${currentPage - 1})" 
+            ${currentPage === 1 ? 'disabled' : ''} 
+            class="px-2 py-1 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+    `;
+
+    const nextBtn = `
+        <button 
+            onclick="changeTablePage(${isManagement}, ${currentPage + 1})" 
+            ${currentPage === totalPages ? 'disabled' : ''} 
+            class="px-2 py-1 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    `;
+
+    // Xuất ra giao diện HTML
+    container.innerHTML = `
+        <div>
+            Hiển thị <b>${startItem} - ${endItem}</b> trên tổng số <b>${totalItems}</b> booking
+        </div>
+        <div class="flex items-center gap-1 flex-wrap justify-end">
+            ${prevBtn}
+            ${buttonsHtml}
+            ${nextBtn}
+        </div>
+    `;
+}
+
+function changeTablePage(isManagement, newPage) {
+    if (isManagement) {
+        currentPageMgt = newPage;
+        renderBookingTable('tabManagementTable', true);
+    } else {
+        currentPageBooking = newPage;
+        renderBookingTable('tabBookingTable', false);
+    }
+}
 
         // --- MANAGEMENT ACTIONS (EDIT / CANCEL) ---
         function openEditModal(bId) {
