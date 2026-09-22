@@ -20,9 +20,11 @@
     </style>
     <!-- Firebase JS SDK (v9 Compatibility) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <!-- Firebase JS SDK (v9 Compatibility) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen">
 
@@ -64,8 +66,18 @@
 
         <!-- ==================== TAB 1: BOOKING ==================== -->
         <div id="tab-booking" class="tab-page space-y-6 hidden">
+            
+            <!-- 1. Dropdown chọn Tên Khách Sạn -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
+                <label class="font-bold text-slate-700 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-building text-blue-600"></i> Chọn Khách Sạn Làm Việc:
+                </label>
+                <select id="bookingHotelSelect" onchange="onHotelSelectChange()" class="border border-slate-300 rounded-xl p-2.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 w-72">
+                    <!-- JS điền danh sách -->
+                </select>
+            </div>
 
-            <!-- 1. Khu vực Tạo Booking Mới -->
+            <!-- 2. Khu vực Tạo Booking Mới -->
             <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <h2 class="text-lg font-bold mb-4 text-slate-800 flex items-center gap-2">
                     <i class="fa-solid fa-circle-plus text-blue-600"></i> Tạo Booking Mới
@@ -76,10 +88,8 @@
                         <input type="text" id="bkCode" required class="w-full border rounded-lg p-2 text-sm" placeholder="BK001">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-700 mb-1">Khách Sạn *</label>
-                        <select id="bookingHotelSelect" class="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 border-slate-300">
-                            <option value="">-- Chọn khách sạn --</option>
-                        </select>
+                        <label class="block font-semibold mb-1 text-slate-600">Khách Sạn</label>
+                        <input type="text" id="bkHotelName" readonly class="w-full border rounded-lg p-2 text-sm bg-slate-100 font-bold">
                     </div>
                     <div>
                         <label class="block font-semibold mb-1 text-slate-600">Loại Phòng *</label>
@@ -146,7 +156,7 @@
                 </form>
             </div>
 
-            <!-- 2. Lịch Booking -->
+            <!-- 3. Lịch Booking -->
             <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
                     <div class="flex items-center gap-2">
@@ -213,7 +223,7 @@
                                 </div>
                             </div>
 
-            <!-- 3. Bảng Danh Sách Booking (Không có Sửa/Hủy + Có Phân Trang) -->
+            <!-- 4. Bảng Danh Sách Booking (Không có Sửa/Hủy + Có Phân Trang) -->
             <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <h2 class="text-lg font-bold mb-4 text-slate-800 flex items-center gap-2">
                     <i class="fa-solid fa-table-list text-blue-600"></i> Danh Sách Booking
@@ -604,7 +614,6 @@
                 // Cập nhật lại toàn bộ giao diện sau khi có dữ liệu mới
                 if (currentAuth) {
                     initAllDropdowns();
-                    renderHotelDropdown();
                     renderCalendar();
                     renderBookingTable('tabBookingTable');
                     initDailyReportDate();
@@ -754,7 +763,6 @@
             document.getElementById('nav-' + tabName).classList.add('active');
 
             if (tabName === 'booking') {
-                renderHotelDropdown();
                 renderCalendar();
                 renderBookingTable('tabBookingTable');
             } else if (tabName === 'management') {
@@ -836,20 +844,6 @@
             alert('Đã tạo Booking mới thành công!');
         }
 
-        // Hàm render danh sách khách sạn vào dropdown trong Form Tạo Booking
-        function renderHotelDropdown() {
-            const hotelSelect = document.getElementById('bookingHotelSelect');
-            if (!hotelSelect) return;
-        
-            if (!hotels || hotels.length === 0) {
-                hotelSelect.innerHTML = `<option value="">-- Chưa có khách sạn nào --</option>`;
-                return;
-            }
-        
-            hotelSelect.innerHTML = `<option value="">-- Chọn khách sạn --</option>` + 
-                hotels.map(h => `<option value="${h.id}">${h.name || h.hotelName}</option>`).join('');
-        }
-        
         // --- CALENDAR RENDER ENGINE ---
         function renderCalendar() {
             const grid = document.getElementById('calendarGrid');
@@ -905,17 +899,17 @@
             }
         }
 
-        // --- HÀM KHỞI TẠO NGÀY MẶC ĐỊNH (SỬA LỖI ReferenceError) ---
-            function initDailyReportDate() {
-                const dateInput = document.getElementById('dailyReportDate');
-                if (dateInput && !dateInput.value) {
-                    const d = new Date();
-                    const year = d.getFullYear();
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    dateInput.value = `${year}-${month}-${day}`;
-                }
+    // --- HÀM KHỞI TẠO NGÀY MẶC ĐỊNH (SỬA LỖI ReferenceError) ---
+        function initDailyReportDate() {
+            const dateInput = document.getElementById('dailyReportDate');
+            if (dateInput && !dateInput.value) {
+                const d = new Date();
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                dateInput.value = `${year}-${month}-${day}`;
             }
+        }
 
         // --- HÀM HỖ TRỢ CHUYỂN DẠNG NGÀY CHUẨN MỌI ĐỊNH DẠNG ---
         function parseAnyDateToTimestamp(dateStr) {
@@ -1390,7 +1384,6 @@
             document.getElementById(id).classList.add('hidden');
         }
 
-        // Bắt sự kiện click vào thẻ booking trên lịch
         document.addEventListener('click', function(e) {
             const card = e.target.closest('.booking-card');
             if (!card) return;
@@ -1398,67 +1391,22 @@
             const bookingId = card.getAttribute('data-id');
             if (!bookingId) return;
         
-            // Tìm dữ liệu booking
-            const b = bookings.find(item => String(item.id) === String(bookingId));
-            if (!b) return;
+            // Tìm thông tin booking trong mảng bookings
+            const booking = bookings.find(b => String(b.id) === String(bookingId));
+            if (!booking) return;
         
-            // Tìm tên khách sạn từ ID
-            const hotel = hotels.find(h => String(h.id) === String(b.hotelId || b.hotel_id));
-            const hotelName = hotel ? hotel.name : (b.hotelName || 'N/A');
-        
-            // Format tiền tệ VNĐ
-            const formatVND = (num) => new Intl.NumberFormat('vi-VN').format(Number(num) || 0) + ' VNĐ';
-        
-            // Đọc ngày checkin / checkout
-            const cIn = b.checkin || b.checkIn || 'N/A';
-            const cOut = b.checkout || b.checkOut || 'N/A';
-        
-            // Cập nhật Tiêu đề Modal
-            const dtTitleEl = document.getElementById('dtTitle');
-            if (dtTitleEl) dtTitleEl.innerText = `Chi Tiết Booking: ${b.code || ''}`;
-        
-            // Đổ nội dung chi tiết vào dtBody
-            const dtBodyEl = document.getElementById('dtBody');
-            if (dtBodyEl) {
-                dtBodyEl.innerHTML = `
-                    <div class="space-y-2.5 text-sm text-slate-700">
-                        <div><strong class="text-slate-900">Khách Sạn:</strong> ${hotelName}</div>
-                        <div><strong class="text-slate-900">Loại Phòng:</strong> ${b.roomType || 'N/A'}</div>
-                        <div><strong class="text-slate-900">Tên Khách:</strong> ${b.guestName || 'N/A'}</div>
-                        <div><strong class="text-slate-900">CCCD/Hộ Khẩu:</strong> ${b.cccd || 'N/A'}</div>
-                        <div><strong class="text-slate-900">Quốc Tịch:</strong> ${b.nation || 'N/A'}</div>
-                        <div><strong class="text-slate-900">Địa Chỉ:</strong> ${b.address || 'N/A'}</div>
-                        <div><strong class="text-slate-900">Nguồn:</strong> ${b.source || 'N/A'}</div>
-                        <div><strong class="text-slate-900">Thời Gian:</strong> ${cIn} &rarr; ${cOut}</div>
-                        <div><strong class="text-slate-900">Giá Bán Tham Khảo:</strong> ${formatVND(b.price)}</div>
-                        <div>
-                            <strong class="text-slate-900">Tổng Tiền:</strong> 
-                            <span class="font-bold text-blue-600">${formatVND(b.total)}</span> 
-                            <span class="text-xs text-slate-500">(Giảm giá: ${formatVND(b.discount)})</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <strong class="text-slate-900">Trạng Thái:</strong>
-                            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
-                                ${b.status || 'Chưa thu'}
-                            </span>
-                        </div>
-                        <div><strong class="text-slate-900">Ghi Chú:</strong> ${b.note || '-'}</div>
-                    </div>
-                `;
+            // Kiểm tra xem trong file có hàm xem chi tiết nào khác không và gọi hàm đó
+            if (typeof showBookingDetail === 'function') {
+                showBookingDetail(bookingId);
+            } else if (typeof openBookingModal === 'function') {
+                openBookingModal(bookingId);
+            } else if (typeof viewBooking === 'function') {
+                viewBooking(bookingId);
+            } else {
+                // Trường hợp không tìm thấy hàm modal nào, hiển thị thông báo chi tiết cơ bản
+                alert(`THÔNG TIN BOOKING:\nMã: ${booking.code || ''}\nKhách hàng: ${booking.guestName || ''}\nSĐT/CCCD: ${booking.cccd || ''}\nLoại phòng: ${booking.roomType || ''}\nCheck-in: ${booking.checkin || ''}\nCheck-out: ${booking.checkout || ''}\nTrạng thái: ${booking.status || ''}`);
             }
-        
-            // Hiển thị Modal cũ của bạn
-            const detailModal = document.getElementById('detailModal');
-            if (detailModal) detailModal.classList.remove('hidden');
         });
-        
-        // Hàm hỗ trợ đóng modal nếu hàm closeModal cũ bị thiếu
-        if (typeof window.closeModal !== 'function') {
-            window.closeModal = function(modalId) {
-                const modal = document.getElementById(modalId);
-                if (modal) modal.classList.add('hidden');
-            };
-        }
 
         // Đưa hàm changeCalendarMonth ra phạm vi toàn cục (window)
         window.changeCalendarMonth = function(offset) {
@@ -1481,6 +1429,7 @@
             if (typeof renderCalendar === 'function') renderCalendar();
             if (typeof renderDailyReport === 'function') renderDailyReport();
         };
+        
     </script>
 </body>
 </html>
