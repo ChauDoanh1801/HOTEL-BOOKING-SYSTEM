@@ -1410,51 +1410,25 @@
 
 // Đưa hàm changeCalendarMonth ra phạm vi toàn cục
 window.changeCalendarMonth = function(offset) {
-    console.log("=== BẮT ĐẦU CHUYỂN THÁNG ===");
-
-    // 1. Tìm biến ngày mà hệ thống đang sử dụng
-    let targetDate = null;
-    if (typeof currentCalendarDate !== 'undefined' && currentCalendarDate instanceof Date) {
-        targetDate = currentCalendarDate;
-    } else if (typeof currentDate !== 'undefined' && currentDate instanceof Date) {
-        targetDate = currentDate;
-    } else {
-        window.currentCalendarDate = new Date();
-        window.currentDate = window.currentCalendarDate;
-        targetDate = window.currentCalendarDate;
+    // 1. Kiểm tra và khởi tạo biến currentCalDate nếu chưa có
+    if (typeof currentCalDate === 'undefined' || !(currentCalDate instanceof Date)) {
+        window.currentCalDate = new Date();
     }
 
-    // 2. Tăng/Giảm tháng
-    targetDate.setMonth(targetDate.getMonth() + offset);
+    // 2. Tăng / Giảm tháng trên đúng biến currentCalDate
+    currentCalDate.setMonth(currentCalDate.getMonth() + offset);
 
-    // 3. Đồng bộ lại cho TẤT CẢ các biến ngày tháng có trong hệ thống
-    window.currentCalendarDate = new Date(targetDate);
-    window.currentDate = new Date(targetDate);
-    if (typeof year !== 'undefined') window.year = targetDate.getFullYear();
-    if (typeof month !== 'undefined') window.month = targetDate.getMonth();
-    if (typeof currentYear !== 'undefined') window.currentYear = targetDate.getFullYear();
-    if (typeof currentMonth !== 'undefined') window.currentMonth = targetDate.getMonth();
-
-    // 4. Render lại lịch
-    if (typeof renderCalendar === 'function') {
-        renderCalendar();
-    }
+    // 3. Render lại lịch và báo cáo ngày
+    if (typeof renderCalendar === 'function') renderCalendar();
+    if (typeof renderDailyReport === 'function') renderDailyReport();
 };
 
 // Đưa hàm resetCalendarToToday ra phạm vi toàn cục
 window.resetCalendarToToday = function() {
-    const now = new Date();
+    window.currentCalDate = new Date();
 
-    window.currentCalendarDate = new Date(now);
-    window.currentDate = new Date(now);
-    if (typeof year !== 'undefined') window.year = now.getFullYear();
-    if (typeof month !== 'undefined') window.month = now.getMonth();
-    if (typeof currentYear !== 'undefined') window.currentYear = now.getFullYear();
-    if (typeof currentMonth !== 'undefined') window.currentMonth = now.getMonth();
-
-    if (typeof renderCalendar === 'function') {
-        renderCalendar();
-    }
+    if (typeof renderCalendar === 'function') renderCalendar();
+    if (typeof renderDailyReport === 'function') renderDailyReport();
 };
         
     </script>
