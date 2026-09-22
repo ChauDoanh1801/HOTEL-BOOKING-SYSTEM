@@ -1436,11 +1436,9 @@
             if (typeof renderDailyReport === 'function') renderDailyReport();
         };
 
-
         // ==========================================
-        // 2. FIX CHÍNH XÁC MODAL BOOKING (KHÔNG BỊ BẬT 2 POPUP)
+        // FIX MODAL CHI TIẾT BOOKING CHÍNH XÁC TUYỆT ĐỐI THEO FORM TẠO MỚI
         // ==========================================
-        // Hủy bỏ các sự kiện click trùng lặp bằng cách bắt sự kiện trực tiếp trên container của Lịch
         document.addEventListener('DOMContentLoaded', function() {
             const calendarGrid = document.getElementById('calendarGrid');
             if (!calendarGrid) return;
@@ -1449,104 +1447,154 @@
                 const card = e.target.closest('.booking-card');
                 if (!card) return;
 
-                // Ngăn chặn các sự kiện click khác/alert cũ chạy đè lên
+                // Triệt tiêu popup alert cũ và ngăn lặp sự kiện
                 e.preventDefault();
                 e.stopPropagation();
 
                 const bookingId = card.getAttribute('data-id');
-                const booking = bookings.find(b => b.id == bookingId || b.code == bookingId);
+                const booking = bookings.find(b => b.id == bookingId || b.code == bookingId || b.bkCode == bookingId);
                 
                 if (!booking) return;
 
-                // Lấy tên khách sạn từ mảng hotels
-                const hotelObj = hotels.find(h => h.id === booking.hotelId);
-                const hotelName = hotelObj ? (hotelObj.name || hotelObj.hotelName) : (booking.hotelId || '---');
+                // Xác định tên khách sạn
+                let hotelDisplayName = booking.hotelName || 'Prive Villa';
+                if (!booking.hotelName && booking.hotelId && typeof hotels !== 'undefined') {
+                    const hotelObj = hotels.find(h => h.id === booking.hotelId);
+                    if (hotelObj) hotelDisplayName = hotelObj.name || hotelObj.hotelName;
+                }
 
-                // Xóa modal cũ nếu đang tồn tại trên UI để tránh bị lặp
+                // Format số tiền
+                const formatMoney = (val) => {
+                    if (val === undefined || val === null || val === '') return '0 VNĐ';
+                    return Number(val).toLocaleString('vi-VN') + ' VNĐ';
+                };
+
+                // Xóa modal cũ nếu có
                 const oldModal = document.getElementById('customBookingModal');
                 if (oldModal) oldModal.remove();
 
-                // Tạo Modal chuẩn căn giữa màn hình với ĐẦY ĐỦ THÔNG TIN hệ thống
+                // Tạo Modal chi tiết thiết kế chuẩn khớp 100% các trường trong Form
                 const modal = document.createElement('div');
                 modal.id = 'customBookingModal';
                 modal.className = 'fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm';
                 
                 modal.innerHTML = `
-                    <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 relative animate-fade-in text-slate-800">
+                    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 relative animate-fade-in text-slate-800">
+                        <!-- Nút Đóng -->
                         <button onclick="document.getElementById('customBookingModal').remove()" 
-                                class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+                                class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 font-bold text-2xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors">&times;</button>
                         
-                        <h3 class="text-lg font-bold text-blue-600 mb-4 border-b pb-2 flex items-center gap-2">
-                            <span>📋</span> CHI TIẾT BOOKING
+                        <!-- Tiêu đề Modal -->
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-info text-blue-600"></i> CHI TIẾT BOOKING
                         </h3>
                         
-                        <div class="grid grid-cols-2 gap-3 text-sm">
-                            <div class="col-span-2 bg-slate-50 p-2.5 rounded-lg border flex justify-between items-center">
-                                <span class="text-xs font-bold text-slate-500 uppercase">Mã Booking</span>
-                                <span class="font-extrabold text-blue-600 text-base">${booking.code || '---'}</span>
+                        <!-- Nội dung Grid hiển thị đầy đủ 15 trường -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
+                            
+                            <!-- Mã Booking -->
+                            <div class="bg-blue-50/70 p-2.5 rounded-lg border border-blue-100">
+                                <span class="block font-semibold text-slate-500 mb-0.5">Mã Booking *</span>
+                                <span class="font-bold text-blue-700 text-sm">${booking.code || booking.bkCode || '---'}</span>
                             </div>
 
-                            <div class="border-b pb-1">
-                                <span class="text-xs text-slate-500 block">Khách Sạn</span>
-                                <span class="font-semibold text-slate-800">${hotelName}</span>
+                            <!-- Khách Sạn -->
+                            <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                                <span class="block font-semibold text-slate-500 mb-0.5">Khách Sạn</span>
+                                <span class="font-bold text-slate-800 text-sm">${hotelDisplayName}</span>
                             </div>
 
-                            <div class="border-b pb-1">
-                                <span class="text-xs text-slate-500 block">Loại Phòng</span>
-                                <span class="font-semibold text-slate-800">${booking.roomType || '---'}</span>
+                            <!-- Loại Phòng -->
+                            <div class="p-2.5 rounded-lg border border-slate-100">
+                                <span class="block font-semibold text-slate-500 mb-0.5">Loại Phòng *</span>
+                                <span class="font-semibold text-slate-800 text-sm">${booking.roomType || '---'}</span>
                             </div>
 
-                            <div class="border-b pb-1">
-                                <span class="text-xs text-slate-500 block">Tên Khách Hàng</span>
-                                <span class="font-bold text-slate-900">${booking.guestName || '---'}</span>
+                            <!-- Tên Khách -->
+                            <div class="p-2.5 rounded-lg border border-slate-100">
+                                <span class="block font-semibold text-slate-500 mb-0.5">Tên Khách *</span>
+                                <span class="font-bold text-slate-900 text-sm">${booking.guestName || '---'}</span>
                             </div>
 
-                            <div class="border-b pb-1">
-                                <span class="text-xs text-slate-500 block">SĐT / CCCD</span>
-                                <span class="font-medium text-slate-800">${booking.phone || booking.cccd || '---'}</span>
+                            <!-- CCCD/Hộ Khẩu -->
+                            <div class="p-2.5 rounded-lg border border-slate-100">
+                                <span class="block font-semibold text-slate-500 mb-0.5">CCCD/Hộ Khẩu</span>
+                                <span class="font-medium text-slate-800">${booking.cccd || '---'}</span>
                             </div>
 
-                            <div class="border-b pb-1">
-                                <span class="text-xs text-slate-500 block">Ngày Check-in</span>
-                                <span class="font-semibold text-green-700">${booking.checkin || '---'}</span>
+                            <!-- Quốc Tịch -->
+                            <div class="p-2.5 rounded-lg border border-slate-100">
+                                <span class="block font-semibold text-slate-500 mb-0.5">Quốc Tịch</span>
+                                <span class="font-medium text-slate-800">${booking.nation || booking.nationality || '---'}</span>
                             </div>
 
-                            <div class="border-b pb-1">
-                                <span class="text-xs text-slate-500 block">Ngày Check-out</span>
-                                <span class="font-semibold text-red-700">${booking.checkout || '---'}</span>
+                            <!-- Địa Chỉ -->
+                            <div class="p-2.5 rounded-lg border border-slate-100">
+                                <span class="block font-semibold text-slate-500 mb-0.5">Địa Chỉ</span>
+                                <span class="font-medium text-slate-800">${booking.address || '---'}</span>
                             </div>
 
-                            <div class="border-b pb-1">
-                                <span class="text-xs text-slate-500 block">Tổng Tiền</span>
-                                <span class="font-bold text-slate-900">${booking.total ? Number(booking.total).toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</span>
+                            <!-- Giá Bán Tham Khảo -->
+                            <div class="p-2.5 rounded-lg border border-slate-100">
+                                <span class="block font-semibold text-slate-500 mb-0.5">Giá Bán Tham Khảo</span>
+                                <span class="font-medium text-slate-800">${formatMoney(booking.price || booking.referencePrice)}</span>
                             </div>
 
-                            <div class="border-b pb-1">
-                                <span class="text-xs text-slate-500 block">Giảm Giá</span>
-                                <span class="font-medium text-slate-800">${booking.discount ? Number(booking.discount).toLocaleString('vi-VN') + ' VNĐ' : '0 VNĐ'}</span>
+                            <!-- Nguồn Booking -->
+                            <div class="p-2.5 rounded-lg border border-slate-100">
+                                <span class="block font-semibold text-slate-500 mb-0.5">Nguồn Booking</span>
+                                <span class="inline-block px-2 py-0.5 rounded font-semibold bg-slate-100 text-slate-700">${booking.source || '---'}</span>
                             </div>
 
-                            <div class="col-span-2 border-b pb-1">
-                                <span class="text-xs text-slate-500 block">Trạng Thái</span>
-                                <span class="inline-block px-2.5 py-0.5 mt-1 rounded text-xs font-bold bg-blue-100 text-blue-800">${booking.status || 'Thu tiền'}</span>
+                            <!-- Check-in -->
+                            <div class="p-2.5 rounded-lg border border-slate-100">
+                                <span class="block font-semibold text-slate-500 mb-0.5">Check-in *</span>
+                                <span class="font-bold text-green-600">${booking.checkin || '---'}</span>
                             </div>
 
-                            <div class="col-span-2 bg-yellow-50 p-2.5 rounded-lg border border-yellow-200">
-                                <span class="text-xs text-yellow-800 font-bold block mb-0.5">Ghi Chú:</span>
-                                <span class="text-xs text-slate-700 italic">${booking.note || booking.notes || 'Không có ghi chú'}</span>
+                            <!-- Check-out -->
+                            <div class="p-2.5 rounded-lg border border-slate-100">
+                                <span class="block font-semibold text-slate-500 mb-0.5">Check-out *</span>
+                                <span class="font-bold text-red-600">${booking.checkout || '---'}</span>
                             </div>
+
+                            <!-- Tổng Tiền -->
+                            <div class="p-2.5 rounded-lg border border-slate-100">
+                                <span class="block font-semibold text-slate-500 mb-0.5">Tổng Tiền (VNĐ)</span>
+                                <span class="font-bold text-blue-600">${formatMoney(booking.total)}</span>
+                            </div>
+
+                            <!-- Giảm Giá -->
+                            <div class="p-2.5 rounded-lg border border-slate-100">
+                                <span class="block font-semibold text-slate-500 mb-0.5">Giảm Giá (VNĐ)</span>
+                                <span class="font-medium text-slate-800">${formatMoney(booking.discount)}</span>
+                            </div>
+
+                            <!-- Trạng Thái -->
+                            <div class="p-2.5 rounded-lg border border-slate-100">
+                                <span class="block font-semibold text-slate-500 mb-0.5">Trạng Thái *</span>
+                                <span class="inline-block px-2 py-0.5 rounded font-bold bg-green-100 text-green-800">${booking.status || 'Thu tiền'}</span>
+                            </div>
+
+                            <!-- Ghi Chú (Rộng 2 đến 4 cột tùy màn hình) -->
+                            <div class="md:col-span-2 lg:col-span-2 bg-yellow-50/70 p-2.5 rounded-lg border border-yellow-200">
+                                <span class="block font-semibold text-yellow-800 mb-0.5">Ghi Chú</span>
+                                <p class="text-slate-700 italic">${booking.note || 'Không có ghi chú'}</p>
+                            </div>
+
                         </div>
 
-                        <div class="mt-5 flex justify-end">
+                        <!-- Chân Modal -->
+                        <div class="mt-6 flex justify-end">
                             <button onclick="document.getElementById('customBookingModal').remove()" 
-                                    class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg transition-colors">
+                                    class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-6 py-2 rounded-xl transition text-sm">
                                 Đóng
                             </button>
                         </div>
                     </div>
                 `;
                 document.body.appendChild(modal);
-            }, true); // Bắt sự kiện ở pha capture để chặn triệt để popup cũ
+            }, true);
         });
         
     </script>
