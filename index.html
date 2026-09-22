@@ -111,7 +111,7 @@
                         <input type="text" id="bkGuestName" required class="w-full border rounded-lg p-2 text-sm" placeholder="Nguyễn Văn A">
                     </div>
                     <div>
-                        <label class="block font-semibold mb-1 text-slate-600">CCCD/Hộ Khẩu</label>
+                        <label class="block font-semibold mb-1 text-slate-600">CCCD/Hộ Chiếu</label>
                         <input type="text" id="bkCccd" class="w-full border rounded-lg p-2 text-sm" placeholder="048099xxxxxx">
                     </div>
                     <div>
@@ -511,7 +511,7 @@
                     <input type="text" id="edGuestName" required class="w-full border rounded-lg p-2">
                 </div>
                 <div>
-                    <label class="block font-semibold mb-1">CCCD/Hộ Khẩu</label>
+                    <label class="block font-semibold mb-1">CCCD/Hộ Chiếu</label>
                     <input type="text" id="edCccd" class="w-full border rounded-lg p-2">
                 </div>
                 <div>
@@ -1369,7 +1369,7 @@ function generateReport() {
                 "Tên Khách Sạn": b.hotelName,
                 "Loại Phòng": b.roomType,
                 "Tên Khách Hàng": b.guestName,
-                "CCCD / Hộ Khẩu": b.cccd,
+                "CCCD / Hộ Chiếu": b.cccd,
                 "Quốc Tịch": b.nation,
                 "Địa Chỉ": b.address,
                 "Giá Tham Khảo": b.price,
@@ -1623,7 +1623,7 @@ function generateReport() {
                             <!-- Nhóm Khách hàng -->
                             <div class="space-y-1.5 px-1 pt-1 border-t border-slate-100">
                                 <div class="flex justify-between">
-                                    <span class="text-slate-500">CCCD/Hộ khẩu:</span>
+                                    <span class="text-slate-500">CCCD/Hộ Chiếu:</span>
                                     <span class="font-medium text-slate-700">${booking.cccd || '---'}</span>
                                 </div>
                                 <div class="flex justify-between">
