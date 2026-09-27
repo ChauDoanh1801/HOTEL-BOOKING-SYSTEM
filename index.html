@@ -874,23 +874,29 @@
 
         // --- CALENDAR RENDER ENGINE ---
         function renderCalendar() {
+            console.log("--> [DEBUG CALENDAR] Bắt đầu render lại Lịch...");
             const grid = document.getElementById('calendarGrid');
+            if (!grid) return;
             grid.innerHTML = '';
 
             const year = currentCalDate.getFullYear();
             const month = currentCalDate.getMonth();
 
-            document.getElementById('calendarMonthTitle').innerText = `Tháng ${month + 1} / ${year}`;
+            const monthTitleEl = document.getElementById('calendarMonthTitle');
+            if (monthTitleEl) {
+                monthTitleEl.innerText = `Tháng ${month + 1} / ${year}`;
+            }
 
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const todayStr = new Date().toISOString().split('T')[0];
 
-            const selectedHotelFilter = document.getElementById('calendarHotelFilter').value;
+            const hotelFilterEl = document.getElementById('calendarHotelFilter');
+            const selectedHotelFilter = hotelFilterEl ? hotelFilterEl.value : '';
 
-            // Tăng min-height ô trống để cân bằng khung lịch
+            // Ô trống đầu tháng
             for (let i = 0; i < firstDay; i++) {
-                grid.innerHTML += `<div class="bg-slate-50 border rounded-lg min-h-[160px]"></div>`;
+                grid.innerHTML += `<div class="bg-slate-50 border rounded-lg min-h-[185px]"></div>`;
             }
 
             for (let d = 1; d <= daysInMonth; d++) {
@@ -898,10 +904,9 @@
                 const isPast = dateStr < todayStr;
 
                 let dayBookings = bookings.filter(b => {
+                    if (!b) return false;
                     const matchHotel = !selectedHotelFilter || b.hotelId === selectedHotelFilter;
                     const inRange = dateStr >= b.checkin && dateStr < b.checkout;
-                    
-                    // 1. CẢI TIỆN: Không hiển thị những booking có trạng thái "Khách Hủy"
                     const isNotCancelled = b.status !== 'Khách Hủy';
 
                     return matchHotel && inRange && isNotCancelled;
@@ -910,18 +915,29 @@
                 let hasBookingTick = dayBookings.length > 0 ? `<span class="text-green-600 font-bold ml-1">✓</span>` : '';
 
                 let cardsHtml = dayBookings.map(b => {
-                    const rm = rooms.find(r => r.name === b.roomType) || { color: '#2563eb' };
+                    const rm = (typeof rooms !== 'undefined' && Array.isArray(rooms)) 
+                        ? (rooms.find(r => r && r.name === b.roomType) || { color: '#2563eb' }) 
+                        : { color: '#2563eb' };
+                    
+                    const bookingCode = b.code || b.bkCode || '';
+
+                    // LOGIC CHỈ HIỂN THỊ MÃ TẠI NGÀY CHECK-IN VÀ CHECK-OUT
+                    const isCheckinDay = (dateStr === b.checkin);
+                    const isCheckoutDay = (dateStr === b.checkout);
+                    const showCode = isCheckinDay || isCheckoutDay;
+
+                    const displayText = showCode ? bookingCode : '&nbsp;';
+
                     return `
                         <div data-id="${b.id}" 
                              style="background-color: ${rm.color}" 
+                             title="${bookingCode} - ${b.guestName || 'Khách'} (${b.checkin} -> ${b.checkout})"
                              class="booking-card text-[10px] text-white p-1 rounded font-bold cursor-pointer truncate shadow-sm mt-1 hover:brightness-110 ${isPast ? 'past-card' : ''}">
-                            ${b.code || b.bkCode}
+                            ${displayText}
                         </div>
                     `;
                 }).join('');
 
-                // 2. CẢI TIỆN: Đổi min-h-[75px] thành min-h-[165px] và max-h-[55px] thành max-h-[140px]
-                // giúp hiển thị vừa 6 thẻ cùng lúc, từ thẻ thứ 7 trở đi sẽ cuộn mượt mà
                 grid.innerHTML += `
                     <div class="bg-white p-1 border rounded-lg min-h-[185px] flex flex-col justify-start text-left ${isPast ? 'past-day' : ''}">
                         <div class="text-[11px] font-bold text-slate-500 mb-0.5 flex justify-between shrink-0">
@@ -932,6 +948,7 @@
                     </div>
                 `;
             }
+            console.log("--> [DEBUG CALENDAR SUCCESS] Render Lịch hoàn tất thành công.");
         }
 
     // --- HÀM KHỞI TẠO NGÀY MẶC ĐỊNH (SỬA LỖI ReferenceError) ---
@@ -1553,7 +1570,7 @@ function generateReport() {
         };
 
 // ==========================================
-        // FIX LỖI CRASH UNDEFINED TRONG MẢNG BOOKINGS
+        // FIX LỖI CRASH UNDEFINED TRONG MẢNG BOOKINGS + BẮT SỰ KIỆN TOÀN CỤC
         // ==========================================
         document.addEventListener('click', function(e) {
             // 1. Kiểm tra xem điểm click có thuộc thẻ .booking-card không
@@ -1604,7 +1621,7 @@ function generateReport() {
                 return Number(val).toLocaleString('vi-VN') + ' VNĐ';
             };
 
-            // 5. Xóa modal cũ
+            // 5. Xóa modal cũ nếu đang mở
             const oldModal = document.getElementById('customBookingModal');
             if (oldModal) oldModal.remove();
 
