@@ -1553,42 +1553,69 @@ function generateReport() {
         };
 
 // ==========================================
-        // MODAL TỐI ƯU NHỎ GỌN - TỰ ĐỘNG THÍCH ỨNG MOBILE (DÙNG EVENT DELEGATION TOÀN CỤC)
+        // MODAL TỐI ƯU NHỎ GỌN + BỘ DEBUG TOÀN DIỆN (CAPTURE PHASE)
         // ==========================================
         document.addEventListener('click', function(e) {
             // 1. Kiểm tra xem điểm click có thuộc thẻ .booking-card không
             const card = e.target.closest('.booking-card');
             if (!card) return;
 
-            // 2. Chặn các hành động/popup mặc định khác
+            console.log("--> [DEBUG] 1. Đã bấm vào thẻ Booking Card:", card);
+
+            // 2. Chặn các hành động nhảy trang hoặc popup trùng lặp khác
             e.preventDefault();
             e.stopPropagation();
 
-            // 3. Lấy dữ liệu booking từ ID
+            // 3. Kiểm tra ID Booking trên thuộc tính data-id
             const bookingId = card.getAttribute('data-id');
-            if (!bookingId || typeof bookings === 'undefined') return;
+            console.log("--> [DEBUG] 2. ID Booking lấy từ data-id:", bookingId);
 
+            if (!bookingId) {
+                console.error("--> [DEBUG ERROR] Thẻ booking này thiếu thuộc tính data-id!");
+                return;
+            }
+
+            // 4. Kiểm tra sự tồn tại của mảng dữ liệu bookings
+            if (typeof bookings === 'undefined' || !Array.isArray(bookings)) {
+                console.error("--> [DEBUG ERROR] Biến 'bookings' chưa được khởi tạo hoặc không phải là mảng!");
+                return;
+            }
+
+            console.log("--> [DEBUG] 3. Tổng số booking có trong hệ thống:", bookings.length);
+
+            // 5. Tìm booking tương ứng trong danh sách
             const booking = bookings.find(b => b.id == bookingId || b.code == bookingId || b.bkCode == bookingId);
-            if (!booking) return;
+            
+            if (!booking) {
+                console.error("--> [DEBUG ERROR] Không tìm thấy dữ liệu booking cho ID:", bookingId);
+                console.log("--> [DEBUG] Danh sách ID booking đang có:", bookings.map(b => b.id || b.code));
+                return;
+            }
 
-            // Xác định tên khách sạn
+            console.log("--> [DEBUG] 4. Đã tìm thấy dữ liệu Booking thành công:", booking);
+
+            // 6. Xác định tên khách sạn
             let hotelName = booking.hotelName || 'Prive Villa';
             if (!booking.hotelName && booking.hotelId && typeof hotels !== 'undefined') {
                 const hotelObj = hotels.find(h => h.id === booking.hotelId);
                 if (hotelObj) hotelName = hotelObj.name || hotelObj.hotelName;
             }
 
-            // Format tiền tệ gọn gàng
+            // Format tiền tệ
             const formatMoney = (val) => {
                 if (val === undefined || val === null || val === '') return '0 VNĐ';
                 return Number(val).toLocaleString('vi-VN') + ' VNĐ';
             };
 
-            // 4. Xóa modal cũ nếu đang mở để tránh bị lặp
+            // 7. Xóa modal cũ nếu đang mở
             const oldModal = document.getElementById('customBookingModal');
-            if (oldModal) oldModal.remove();
+            if (oldModal) {
+                console.log("--> [DEBUG] 5. Xóa Modal cũ đang hiển thị");
+                oldModal.remove();
+            }
 
-            // 5. Tạo Modal nhỏ gọn nằm CHÍNH GIỮA MÀN HÌNH
+            // 8. Dựng Modal mới chính giữa màn hình
+            console.log("--> [DEBUG] 6. Bắt đầu vẽ Modal mới...");
             const modal = document.createElement('div');
             modal.id = 'customBookingModal';
             modal.className = 'fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm';
@@ -1610,7 +1637,7 @@ function generateReport() {
                         </button>
                     </div>
                     
-                    <!-- Body có thể cuộn (Scrollable) -->
+                    <!-- Body cuộn tự động -->
                     <div class="p-4 overflow-y-auto space-y-3 text-xs leading-relaxed">
                         
                         <!-- Nhóm thông tin chính -->
@@ -1697,12 +1724,12 @@ function generateReport() {
                 </div>
             `;
 
-            // Đóng khi click ngoài nền đen
             modal.addEventListener('click', function(evt) {
                 if (evt.target === modal) modal.remove();
             });
 
             document.body.appendChild(modal);
+            console.log("--> [DEBUG SUCCESS] Đã hiển thị Modal thành công!");
         }, true);
         
     </script>
