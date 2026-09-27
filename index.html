@@ -17,6 +17,17 @@
         .tab-btn.active { color: #2563eb; border-bottom: 2px solid #2563eb; font-weight: 700; }
         .past-day { background-color: #f1f5f9 !important; color: #94a3b8; }
         .past-card { opacity: 0.55; filter: grayscale(100%); }
+        /* Thanh cuộn nhỏ gọn cho ô lịch */
+        .custom-scroll::-webkit-scrollbar {
+            width: 3px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
     </style>
     <!-- Firebase JS SDK (v9 Compatibility) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -877,8 +888,9 @@
 
             const selectedHotelFilter = document.getElementById('calendarHotelFilter').value;
 
+            // Tăng min-height ô trống để cân bằng khung lịch
             for (let i = 0; i < firstDay; i++) {
-                grid.innerHTML += `<div class="bg-slate-50 border rounded-lg min-h-[70px]"></div>`;
+                grid.innerHTML += `<div class="bg-slate-50 border rounded-lg min-h-[160px]"></div>`;
             }
 
             for (let d = 1; d <= daysInMonth; d++) {
@@ -888,7 +900,11 @@
                 let dayBookings = bookings.filter(b => {
                     const matchHotel = !selectedHotelFilter || b.hotelId === selectedHotelFilter;
                     const inRange = dateStr >= b.checkin && dateStr < b.checkout;
-                    return matchHotel && inRange;
+                    
+                    // 1. CẢI TIỆN: Không hiển thị những booking có trạng thái "Khách Hủy"
+                    const isNotCancelled = b.status !== 'Khách Hủy';
+
+                    return matchHotel && inRange && isNotCancelled;
                 });
 
                 let hasBookingTick = dayBookings.length > 0 ? `<span class="text-green-600 font-bold ml-1">✓</span>` : '';
@@ -899,18 +915,20 @@
                         <div data-id="${b.id}" 
                              style="background-color: ${rm.color}" 
                              class="booking-card text-[10px] text-white p-1 rounded font-bold cursor-pointer truncate shadow-sm mt-1 hover:brightness-110 ${isPast ? 'past-card' : ''}">
-                            ${b.code}
+                            ${b.code || b.bkCode}
                         </div>
                     `;
                 }).join('');
 
+                // 2. CẢI TIỆN: Đổi min-h-[75px] thành min-h-[165px] và max-h-[55px] thành max-h-[140px]
+                // giúp hiển thị vừa 6 thẻ cùng lúc, từ thẻ thứ 7 trở đi sẽ cuộn mượt mà
                 grid.innerHTML += `
-                    <div class="bg-white p-1 border rounded-lg min-h-[75px] flex flex-col justify-start text-left ${isPast ? 'past-day' : ''}">
-                        <div class="text-[11px] font-bold text-slate-500 mb-0.5 flex justify-between">
+                    <div class="bg-white p-1 border rounded-lg min-h-[165px] flex flex-col justify-start text-left ${isPast ? 'past-day' : ''}">
+                        <div class="text-[11px] font-bold text-slate-500 mb-0.5 flex justify-between shrink-0">
                             <span>${d}</span>
                             <span>${hasBookingTick}</span>
                         </div>
-                        <div class="space-y-0.5 overflow-y-auto max-h-[55px]">${cardsHtml}</div>
+                        <div class="space-y-0.5 overflow-y-auto max-h-[140px] pr-0.5 custom-scroll">${cardsHtml}</div>
                     </div>
                 `;
             }
