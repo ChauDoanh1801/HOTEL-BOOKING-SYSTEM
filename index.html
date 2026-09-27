@@ -923,12 +923,12 @@
                 // 2. CẢI TIỆN: Đổi min-h-[75px] thành min-h-[165px] và max-h-[55px] thành max-h-[140px]
                 // giúp hiển thị vừa 6 thẻ cùng lúc, từ thẻ thứ 7 trở đi sẽ cuộn mượt mà
                 grid.innerHTML += `
-                    <div class="bg-white p-1 border rounded-lg min-h-[165px] flex flex-col justify-start text-left ${isPast ? 'past-day' : ''}">
+                    <div class="bg-white p-1 border rounded-lg min-h-[185px] flex flex-col justify-start text-left ${isPast ? 'past-day' : ''}">
                         <div class="text-[11px] font-bold text-slate-500 mb-0.5 flex justify-between shrink-0">
                             <span>${d}</span>
                             <span>${hasBookingTick}</span>
                         </div>
-                        <div class="space-y-0.5 overflow-y-auto max-h-[140px] pr-0.5 custom-scroll">${cardsHtml}</div>
+                        <div class="space-y-0.5 overflow-y-auto max-h-[160px] pr-0.5 custom-scroll">${cardsHtml}</div>
                     </div>
                 `;
             }
