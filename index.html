@@ -1553,7 +1553,7 @@ function generateReport() {
         };
 
 // ==========================================
-        // MODAL TỐI ƯU NHỎ GỌN + BỘ DEBUG TOÀN DIỆN (CAPTURE PHASE)
+        // FIX LỖI CRASH UNDEFINED TRONG MẢNG BOOKINGS
         // ==========================================
         document.addEventListener('click', function(e) {
             // 1. Kiểm tra xem điểm click có thuộc thẻ .booking-card không
@@ -1562,11 +1562,10 @@ function generateReport() {
 
             console.log("--> [DEBUG] 1. Đã bấm vào thẻ Booking Card:", card);
 
-            // 2. Chặn các hành động nhảy trang hoặc popup trùng lặp khác
             e.preventDefault();
             e.stopPropagation();
 
-            // 3. Kiểm tra ID Booking trên thuộc tính data-id
+            // 2. Lấy ID Booking
             const bookingId = card.getAttribute('data-id');
             console.log("--> [DEBUG] 2. ID Booking lấy từ data-id:", bookingId);
 
@@ -1575,29 +1574,27 @@ function generateReport() {
                 return;
             }
 
-            // 4. Kiểm tra sự tồn tại của mảng dữ liệu bookings
             if (typeof bookings === 'undefined' || !Array.isArray(bookings)) {
-                console.error("--> [DEBUG ERROR] Biến 'bookings' chưa được khởi tạo hoặc không phải là mảng!");
+                console.error("--> [DEBUG ERROR] Biến 'bookings' chưa được khởi tạo!");
                 return;
             }
 
-            console.log("--> [DEBUG] 3. Tổng số booking có trong hệ thống:", bookings.length);
+            console.log("--> [DEBUG] 3. Tổng số booking trong mảng:", bookings.length);
 
-            // 5. Tìm booking tương ứng trong danh sách
-            const booking = bookings.find(b => b.id == bookingId || b.code == bookingId || b.bkCode == bookingId);
+            // 3. FIX CHÍNH TẠI ĐÂY: Dùng (b && ...) để tránh bị crash khi có phần tử null/undefined
+            const booking = bookings.find(b => b && (b.id == bookingId || b.code == bookingId || b.bkCode == bookingId));
             
             if (!booking) {
-                console.error("--> [DEBUG ERROR] Không tìm thấy dữ liệu booking cho ID:", bookingId);
-                console.log("--> [DEBUG] Danh sách ID booking đang có:", bookings.map(b => b.id || b.code));
+                console.error("--> [DEBUG ERROR] Không tìm thấy booking khớp với ID:", bookingId);
                 return;
             }
 
-            console.log("--> [DEBUG] 4. Đã tìm thấy dữ liệu Booking thành công:", booking);
+            console.log("--> [DEBUG SUCCESS] 4. Đã lấy thành công dữ liệu Booking:", booking);
 
-            // 6. Xác định tên khách sạn
+            // 4. Xác định tên khách sạn
             let hotelName = booking.hotelName || 'Prive Villa';
-            if (!booking.hotelName && booking.hotelId && typeof hotels !== 'undefined') {
-                const hotelObj = hotels.find(h => h.id === booking.hotelId);
+            if (!booking.hotelName && booking.hotelId && typeof hotels !== 'undefined' && Array.isArray(hotels)) {
+                const hotelObj = hotels.find(h => h && h.id === booking.hotelId);
                 if (hotelObj) hotelName = hotelObj.name || hotelObj.hotelName;
             }
 
@@ -1607,15 +1604,11 @@ function generateReport() {
                 return Number(val).toLocaleString('vi-VN') + ' VNĐ';
             };
 
-            // 7. Xóa modal cũ nếu đang mở
+            // 5. Xóa modal cũ
             const oldModal = document.getElementById('customBookingModal');
-            if (oldModal) {
-                console.log("--> [DEBUG] 5. Xóa Modal cũ đang hiển thị");
-                oldModal.remove();
-            }
+            if (oldModal) oldModal.remove();
 
-            // 8. Dựng Modal mới chính giữa màn hình
-            console.log("--> [DEBUG] 6. Bắt đầu vẽ Modal mới...");
+            // 6. Tạo Modal hiển thị chính giữa màn hình
             const modal = document.createElement('div');
             modal.id = 'customBookingModal';
             modal.className = 'fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm';
@@ -1729,7 +1722,7 @@ function generateReport() {
             });
 
             document.body.appendChild(modal);
-            console.log("--> [DEBUG SUCCESS] Đã hiển thị Modal thành công!");
+            console.log("--> [DEBUG SUCCESS] Modal đã được bật hiển thị thành công!");
         }, true);
         
     </script>
