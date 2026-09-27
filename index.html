@@ -1552,159 +1552,158 @@ function generateReport() {
             if (typeof renderDailyReport === 'function') renderDailyReport();
         };
 
+// ==========================================
+        // MODAL TỐI ƯU NHỎ GỌN - TỰ ĐỘNG THÍCH ỨNG MOBILE (DÙNG EVENT DELEGATION TOÀN CỤC)
         // ==========================================
-        // MODAL TỐI ƯU NHỎ GỌN - TỰ ĐỘNG THÍCH ỨNG MOBILE
-        // ==========================================
-        document.addEventListener('DOMContentLoaded', function() {
-            const calendarGrid = document.getElementById('calendarGrid');
-            if (!calendarGrid) return;
+        document.addEventListener('click', function(e) {
+            // 1. Kiểm tra xem điểm click có thuộc thẻ .booking-card không
+            const card = e.target.closest('.booking-card');
+            if (!card) return;
 
-            calendarGrid.addEventListener('click', function(e) {
-                const card = e.target.closest('.booking-card');
-                if (!card) return;
+            // 2. Chặn các hành động/popup mặc định khác
+            e.preventDefault();
+            e.stopPropagation();
 
-                e.preventDefault();
-                e.stopPropagation();
+            // 3. Lấy dữ liệu booking từ ID
+            const bookingId = card.getAttribute('data-id');
+            if (!bookingId || typeof bookings === 'undefined') return;
 
-                const bookingId = card.getAttribute('data-id');
-                const booking = bookings.find(b => b.id == bookingId || b.code == bookingId || b.bkCode == bookingId);
-                
-                if (!booking) return;
+            const booking = bookings.find(b => b.id == bookingId || b.code == bookingId || b.bkCode == bookingId);
+            if (!booking) return;
 
-                // Xác định tên khách sạn
-                let hotelName = booking.hotelName || 'Prive Villa';
-                if (!booking.hotelName && booking.hotelId && typeof hotels !== 'undefined') {
-                    const hotelObj = hotels.find(h => h.id === booking.hotelId);
-                    if (hotelObj) hotelName = hotelObj.name || hotelObj.hotelName;
-                }
+            // Xác định tên khách sạn
+            let hotelName = booking.hotelName || 'Prive Villa';
+            if (!booking.hotelName && booking.hotelId && typeof hotels !== 'undefined') {
+                const hotelObj = hotels.find(h => h.id === booking.hotelId);
+                if (hotelObj) hotelName = hotelObj.name || hotelObj.hotelName;
+            }
 
-                // Format tiền tệ gọn gàng
-                const formatMoney = (val) => {
-                    if (val === undefined || val === null || val === '') return '0 VNĐ';
-                    return Number(val).toLocaleString('vi-VN') + ' VNĐ';
-                };
+            // Format tiền tệ gọn gàng
+            const formatMoney = (val) => {
+                if (val === undefined || val === null || val === '') return '0 VNĐ';
+                return Number(val).toLocaleString('vi-VN') + ' VNĐ';
+            };
 
-                // Xóa modal cũ nếu đang mở
-                const oldModal = document.getElementById('customBookingModal');
-                if (oldModal) oldModal.remove();
+            // 4. Xóa modal cũ nếu đang mở để tránh bị lặp
+            const oldModal = document.getElementById('customBookingModal');
+            if (oldModal) oldModal.remove();
 
-                // Tạo Modal mới nhỏ gọn, tối ưu trên điện thoại
-                const modal = document.createElement('div');
-                modal.id = 'customBookingModal';
-                modal.className = 'fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm';
-                
-                modal.innerHTML = `
-                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden animate-fade-in text-slate-800">
-                        
-                        <!-- Header cố định -->
-                        <div class="px-4 py-3 bg-slate-900 text-white flex items-center justify-between shrink-0">
-                            <div class="flex items-center gap-2">
-                                <span class="bg-blue-600 text-white font-bold text-xs px-2 py-0.5 rounded">
-                                    ${booking.code || booking.bkCode || 'BOOKING'}
-                                </span>
-                                <h3 class="font-bold text-sm truncate max-w-[200px]">${booking.guestName || 'Thông tin Booking'}</h3>
-                            </div>
-                            <button onclick="document.getElementById('customBookingModal').remove()" 
-                                    class="text-slate-400 hover:text-white font-bold text-xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800 transition">
-                                &times;
-                            </button>
+            // 5. Tạo Modal nhỏ gọn nằm CHÍNH GIỮA MÀN HÌNH
+            const modal = document.createElement('div');
+            modal.id = 'customBookingModal';
+            modal.className = 'fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm';
+            
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden animate-fade-in text-slate-800">
+                    
+                    <!-- Header cố định -->
+                    <div class="px-4 py-3 bg-slate-900 text-white flex items-center justify-between shrink-0">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-blue-600 text-white font-bold text-xs px-2 py-0.5 rounded">
+                                ${booking.code || booking.bkCode || 'BOOKING'}
+                            </span>
+                            <h3 class="font-bold text-sm truncate max-w-[200px]">${booking.guestName || 'Thông tin Booking'}</h3>
                         </div>
-                        
-                        <!-- Body có thể cuộn (Scrollable) -->
-                        <div class="p-4 overflow-y-auto space-y-3 text-xs leading-relaxed">
-                            
-                            <!-- Nhóm thông tin chính -->
-                            <div class="bg-blue-50/60 p-3 rounded-xl border border-blue-100 space-y-1.5">
-                                <div class="flex justify-between">
-                                    <span class="text-slate-500">Khách sạn:</span>
-                                    <span class="font-bold text-slate-800">${hotelName}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-500">Loại phòng:</span>
-                                    <span class="font-semibold text-blue-700">${booking.roomType || '---'}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-500">Nguồn:</span>
-                                    <span class="font-medium bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-700">${booking.source || 'Trực tiếp'}</span>
-                                </div>
-                            </div>
-
-                            <!-- Nhóm Thời gian -->
-                            <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-center">
-                                <div>
-                                    <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Check-in</span>
-                                    <span class="font-bold text-green-600 text-sm">${booking.checkin || '---'}</span>
-                                </div>
-                                <div class="border-l border-slate-200">
-                                    <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Check-out</span>
-                                    <span class="font-bold text-red-600 text-sm">${booking.checkout || '---'}</span>
-                                </div>
-                            </div>
-
-                            <!-- Nhóm Khách hàng -->
-                            <div class="space-y-1.5 px-1 pt-1 border-t border-slate-100">
-                                <div class="flex justify-between">
-                                    <span class="text-slate-500">CCCD/Hộ Chiếu:</span>
-                                    <span class="font-medium text-slate-700">${booking.cccd || '---'}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-500">Quốc tịch:</span>
-                                    <span class="font-medium text-slate-700">${booking.nation || booking.nationality || '---'}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-500">Địa chỉ:</span>
-                                    <span class="font-medium text-slate-700 truncate max-w-[180px]">${booking.address || '---'}</span>
-                                </div>
-                            </div>
-
-                            <!-- Nhóm Tài chính -->
-                            <div class="space-y-1.5 px-1 pt-2 border-t border-slate-100">
-                                <div class="flex justify-between">
-                                    <span class="text-slate-500">Giá bán tham khảo:</span>
-                                    <span class="text-slate-700">${formatMoney(booking.price || booking.referencePrice)}</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-500">Giảm giá:</span>
-                                    <span class="text-slate-700">${formatMoney(booking.discount)}</span>
-                                </div>
-                                <div class="flex justify-between text-sm pt-1 border-t border-dashed border-slate-200">
-                                    <span class="font-bold text-slate-700">Tổng tiền:</span>
-                                    <span class="font-bold text-blue-600 text-base">${formatMoney(booking.total)}</span>
-                                </div>
-                                <div class="flex justify-between items-center pt-1">
-                                    <span class="text-slate-500">Trạng thái:</span>
-                                    <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-100 text-green-800">${booking.status || 'Thu tiền'}</span>
-                                </div>
-                            </div>
-
-                            <!-- Ghi chú -->
-                            ${(booking.note || booking.notes) ? `
-                                <div class="bg-yellow-50 p-2.5 rounded-lg border border-yellow-200 text-slate-700">
-                                    <span class="font-bold text-yellow-800 block mb-0.5">Ghi chú:</span>
-                                    <p class="italic text-[11px] leading-tight">${booking.note || booking.notes}</p>
-                                </div>
-                            ` : ''}
-
-                        </div>
-
-                        <!-- Footer cố định -->
-                        <div class="p-3 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
-                            <button onclick="document.getElementById('customBookingModal').remove()" 
-                                    class="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold px-5 py-2 rounded-xl transition text-xs shadow-sm">
-                                Đóng
-                            </button>
-                        </div>
+                        <button onclick="document.getElementById('customBookingModal').remove()" 
+                                class="text-slate-400 hover:text-white font-bold text-xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800 transition">
+                            &times;
+                        </button>
                     </div>
-                `;
+                    
+                    <!-- Body có thể cuộn (Scrollable) -->
+                    <div class="p-4 overflow-y-auto space-y-3 text-xs leading-relaxed">
+                        
+                        <!-- Nhóm thông tin chính -->
+                        <div class="bg-blue-50/60 p-3 rounded-xl border border-blue-100 space-y-1.5">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Khách sạn:</span>
+                                <span class="font-bold text-slate-800">${hotelName}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Loại phòng:</span>
+                                <span class="font-semibold text-blue-700">${booking.roomType || '---'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Nguồn:</span>
+                                <span class="font-medium bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-700">${booking.source || 'Trực tiếp'}</span>
+                            </div>
+                        </div>
 
-                // Đóng khi click ngoài nền đen
-                modal.addEventListener('click', function(evt) {
-                    if (evt.target === modal) modal.remove();
-                });
+                        <!-- Nhóm Thời gian -->
+                        <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-center">
+                            <div>
+                                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Check-in</span>
+                                <span class="font-bold text-green-600 text-sm">${booking.checkin || '---'}</span>
+                            </div>
+                            <div class="border-l border-slate-200">
+                                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Check-out</span>
+                                <span class="font-bold text-red-600 text-sm">${booking.checkout || '---'}</span>
+                            </div>
+                        </div>
 
-                document.body.appendChild(modal);
-            }, true);
-        });
+                        <!-- Nhóm Khách hàng -->
+                        <div class="space-y-1.5 px-1 pt-1 border-t border-slate-100">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">CCCD/Hộ Chiếu:</span>
+                                <span class="font-medium text-slate-700">${booking.cccd || '---'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Quốc tịch:</span>
+                                <span class="font-medium text-slate-700">${booking.nation || booking.nationality || '---'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Địa chỉ:</span>
+                                <span class="font-medium text-slate-700 truncate max-w-[180px]">${booking.address || '---'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Nhóm Tài chính -->
+                        <div class="space-y-1.5 px-1 pt-2 border-t border-slate-100">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Giá bán tham khảo:</span>
+                                <span class="text-slate-700">${formatMoney(booking.price || booking.referencePrice)}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Giảm giá:</span>
+                                <span class="text-slate-700">${formatMoney(booking.discount)}</span>
+                            </div>
+                            <div class="flex justify-between text-sm pt-1 border-t border-dashed border-slate-200">
+                                <span class="font-bold text-slate-700">Tổng tiền:</span>
+                                <span class="font-bold text-blue-600 text-base">${formatMoney(booking.total)}</span>
+                            </div>
+                            <div class="flex justify-between items-center pt-1">
+                                <span class="text-slate-500">Trạng thái:</span>
+                                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-100 text-green-800">${booking.status || 'Thu tiền'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Ghi chú -->
+                        ${(booking.note || booking.notes) ? `
+                            <div class="bg-yellow-50 p-2.5 rounded-lg border border-yellow-200 text-slate-700">
+                                <span class="font-bold text-yellow-800 block mb-0.5">Ghi chú:</span>
+                                <p class="italic text-[11px] leading-tight">${booking.note || booking.notes}</p>
+                            </div>
+                        ` : ''}
+
+                    </div>
+
+                    <!-- Footer cố định -->
+                    <div class="p-3 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
+                        <button onclick="document.getElementById('customBookingModal').remove()" 
+                                class="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold px-5 py-2 rounded-xl transition text-xs shadow-sm">
+                            Đóng
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Đóng khi click ngoài nền đen
+            modal.addEventListener('click', function(evt) {
+                if (evt.target === modal) modal.remove();
+            });
+
+            document.body.appendChild(modal);
+        }, true);
         
     </script>
 </body>
