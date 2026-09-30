@@ -89,33 +89,30 @@
     <!-- CONTAINER CHÍNH -->
     <main class="max-w-7xl mx-auto p-4 md:p-6">
 
-        <!-- ==================== TAB 1: BOOKING ==================== -->
+    <!-- ==================== TAB 1: BOOKING ==================== -->
         <div id="tab-booking" class="tab-page space-y-6 hidden">
-            
-            <!-- 1. Dropdown chọn Tên Khách Sạn -->
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
-                <label class="font-bold text-slate-700 text-sm flex items-center gap-2">
-                    <i class="fa-solid fa-building text-blue-600"></i> Chọn Khách Sạn Làm Việc:
-                </label>
-                <select id="bookingHotelSelect" onchange="onHotelSelectChange()" class="border border-slate-300 rounded-xl p-2.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 w-72">
-                    <!-- JS điền danh sách -->
-                </select>
-            </div>
 
-            <!-- 2. Khu vực Tạo Booking Mới -->
+            <!-- Khu vực Tạo Booking Mới -->
             <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <h2 class="text-lg font-bold mb-4 text-slate-800 flex items-center gap-2">
                     <i class="fa-solid fa-circle-plus text-blue-600"></i> Tạo Booking Mới
                 </h2>
                 <form id="createBookingForm" onsubmit="handleCreateBooking(event)" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 text-xs">
+                    
+                    <!-- 1. Mã Booking (Tự động sinh ra đề xuất, nhập tay được) -->
                     <div>
                         <label class="block font-semibold mb-1 text-slate-600">Mã Booking *</label>
-                        <input type="text" id="bkCode" required class="w-full border rounded-lg p-2 text-sm" placeholder="BK001">
+                        <input type="text" id="bkCode" required class="w-full border rounded-lg p-2 text-sm font-bold text-blue-700 bg-blue-50/30" placeholder="BK001">
                     </div>
+
+                    <!-- 2. Khách Sạn (Dropdown lấy danh sách từ Cài Đặt) -->
                     <div>
-                        <label class="block font-semibold mb-1 text-slate-600">Khách Sạn</label>
-                        <input type="text" id="bkHotelName" readonly class="w-full border rounded-lg p-2 text-sm bg-slate-100 font-bold">
+                        <label class="block font-semibold mb-1 text-slate-600">Khách Sạn *</label>
+                        <select id="bkHotelId" required onchange="onBookingFormHotelChange()" class="w-full border rounded-lg p-2 text-sm font-bold text-slate-800">
+                            <!-- JS render danh sách Khách Sạn -->
+                        </select>
                     </div>
+
                     <div>
                         <label class="block font-semibold mb-1 text-slate-600">Loại Phòng *</label>
                         <select id="bkRoomType" required class="w-full border rounded-lg p-2 text-sm"></select>
@@ -836,17 +833,79 @@
             bkStatusSelect.innerHTML = statuses.map(s => `<option value="${s}">${s}</option>`).join('');
         }
 
-        // --- BOOKING CREATION ---
-        function handleCreateBooking(e) {
-            e.preventDefault();
-            const hId = document.getElementById('bookingHotelSelect').value;
-            const hName = document.getElementById('bkHotelName').value;
+        // ====================================================
+        // 1. TỰ ĐỘNG TẠO MÃ BOOKING ĐỀ XUẤT (BK + Timestamp 6 số)
+        // ====================================================
+        function generateAutoBookingCode() {
+            // Lấy 6 số cuối của timestamp để tạo mã ngắn gọn không trùng lặp (ví dụ: BK458291)
+            const randomCode = 'BK' + Date.now().toString().slice(-6);
+            const bkCodeInput = document.getElementById('bkCode');
+            if (bkCodeInput) {
+                bkCodeInput.value = randomCode;
+                console.log("--> [DEBUG] Mã Booking tự động đề xuất:", randomCode);
+            }
+            return randomCode;
+        }
 
-            const newBk = {
+        // ====================================================
+        // 2. RENDER DROPDOWN KHÁCH SẠN TRONG FORM TẠO BOOKING
+        // ====================================================
+        function renderHotelSelectInBookingForm() {
+            const hotelSelect = document.getElementById('bkHotelId');
+            if (!hotelSelect) return;
+
+            hotelSelect.innerHTML = '';
+
+            if (typeof hotels === 'undefined' || !Array.isArray(hotels) || hotels.length === 0) {
+                console.warn("--> [DEBUG WARNING] Danh sách hotels chưa có dữ liệu.");
+                hotelSelect.innerHTML = `<option value="">-- Chưa có Khách sạn trong Cài Đặt --</option>`;
+                return;
+            }
+
+            hotels.forEach(h => {
+                if (h) {
+                    const opt = document.createElement('option');
+                    opt.value = h.id;
+                    opt.textContent = h.name || h.hotelName || 'Khách sạn chưa đặt tên';
+                    hotelSelect.appendChild(opt);
+                }
+            });
+
+            console.log("--> [DEBUG SUCCESS] Đã tải danh sách khách sạn vào Form Booking:", hotels.length);
+
+            // Tự động sinh mã booking mỗi khi load/render lại form
+            generateAutoBookingCode();
+        }
+
+        // Sự kiện khi người dùng chọn đổi Khách Sạn khác trong Form
+        function onBookingFormHotelChange() {
+            const hotelSelect = document.getElementById('bkHotelId');
+            const selectedHotelId = hotelSelect ? hotelSelect.value : '';
+            console.log("--> [DEBUG] Đã đổi Khách sạn được chọn sang ID:", selectedHotelId);
+        }
+
+        // ====================================================
+        // 3. XỬ LÝ LƯU TẠO BOOKING MỚI (Lấy Khách sạn & Mã mới)
+        // ====================================================
+        function handleCreateBooking(event) {
+            event.preventDefault();
+            console.log("--> [DEBUG] Bắt đầu xử lý Form Tạo Booking Mới...");
+
+            const hotelSelect = document.getElementById('bkHotelId');
+            const selectedHotelId = hotelSelect ? hotelSelect.value : '';
+            
+            // Lấy Tên Khách sạn tương ứng từ ID
+            let selectedHotelName = 'Khách sạn';
+            if (typeof hotels !== 'undefined' && Array.isArray(hotels)) {
+                const hObj = hotels.find(h => h && h.id === selectedHotelId);
+                if (hObj) selectedHotelName = hObj.name || hObj.hotelName || 'Khách sạn';
+            }
+
+            const newBooking = {
                 id: 'b_' + Date.now(),
-                code: document.getElementById('bkCode').value.trim(),
-                hotelId: hId,
-                hotelName: hName,
+                code: document.getElementById('bkCode').value.trim() || generateAutoBookingCode(),
+                hotelId: selectedHotelId,
+                hotelName: selectedHotelName,
                 roomType: document.getElementById('bkRoomType').value,
                 guestName: document.getElementById('bkGuestName').value.trim(),
                 cccd: document.getElementById('bkCccd').value.trim(),
@@ -862,14 +921,35 @@
                 note: document.getElementById('bkNote').value.trim()
             };
 
-            bookings.unshift(newBk);
-            saveData();
-            document.getElementById('createBookingForm').reset();
-            onHotelSelectChange();
+            console.log("--> [DEBUG SUCCESS] Dữ liệu Booking Mới chuẩn bị đẩy lên DB:", newBooking);
 
-            renderCalendar();
-            renderBookingTable('tabBookingTable');
-            alert('Đã tạo Booking mới thành công!');
+            // Kiểm tra Firebase / Lưu mảng dữ liệu
+            if (typeof firebase !== 'undefined' && firebase.database) {
+                firebase.database().ref('bookings/' + newBooking.id).set(newBooking)
+                    .then(() => {
+                        console.log("--> [DEBUG FIREBASE] Đã ghi thành công Booking mới lên Firebase Database!");
+                        alert("Thêm Booking mới thành công!");
+                        document.getElementById('createBookingForm').reset();
+                        
+                        // Tái tạo mã đề xuất mới cho lần tạo sau
+                        renderHotelSelectInBookingForm();
+                        
+                        if (typeof renderCalendar === 'function') renderCalendar();
+                    })
+                    .catch(err => {
+                        console.error("--> [DEBUG FIREBASE ERROR] Lỗi khi ghi Firebase:", err);
+                        alert("Lỗi khi tạo booking: " + err.message);
+                    });
+            } else {
+                // Trường hợp dùng mảng tạm (Local)
+                if (typeof bookings !== 'undefined' && Array.isArray(bookings)) {
+                    bookings.push(newBooking);
+                }
+                alert("Thêm Booking thành công (Local)!");
+                document.getElementById('createBookingForm').reset();
+                renderHotelSelectInBookingForm();
+                if (typeof renderCalendar === 'function') renderCalendar();
+            }
         }
 
         // --- CALENDAR RENDER ENGINE ---
