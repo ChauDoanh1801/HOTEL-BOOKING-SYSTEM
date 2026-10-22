@@ -2001,7 +2001,7 @@ function generateReport() {
             const weekDays = getDaysOfWeek(currentWeekOffset);
             
             // Cập nhật nhãn thời gian trên thanh filter
-            document.getElementById('currentWeekLabelinnerText') = `Tuần: ${weekDays[0].label} - ${weekDays[6].label}`;
+            document.getElementById('currentWeekLabel').innerText = `Tuần: ${weekDays[0].label} - ${weekDays[6].label}`;
         
             // Lọc danh sách đối thủ theo kênh OTA được chọn ở filter
             let filteredComps = competitorsData.filter(c => selectedChannel === 'ALL' || c.channel === selectedChannel);
