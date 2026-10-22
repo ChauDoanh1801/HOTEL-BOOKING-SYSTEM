@@ -28,6 +28,36 @@
         .custom-scroll::-webkit-scrollbar-track {
             background: transparent;
         }
+        /* CSS Style Phụ Trợ*/
+        .cell-up {
+        background-color: #e6f4ea !important;
+        border-left: 3px solid #34a853;
+        }
+        .cell-up .sub-percent {
+        color: #137333;
+        font-weight: bold;
+        }
+        .cell-same {
+        background-color: #fef7e0 !important;
+        border-left: 3px solid #fbbc04;
+        }
+        .cell-same .sub-percent {
+        color: #b06000;
+        font-weight: bold;
+        }
+        .cell-down {
+        background-color: #fce8e6 !important;
+        border-left: 3px solid #ea4335;
+        }
+        .cell-down .sub-percent {
+        color: #c5221f;
+        font-weight: bold;
+        }
+        .cell-minmax {
+        background-color: #e8f0fe !important;
+        color: #1967d2;
+        font-weight: bold;
+        }
     </style>
     <!-- Firebase JS SDK (v9 Compatibility) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -44,47 +74,48 @@
 <body class="bg-slate-100 text-slate-800 min-h-screen overflow-x-hidden">
 
     <!-- TOP NAVIGATION BAR (SIÊU TỐI ƯU CHO MOBILE) -->
-    <header id="mainHeader" class="hidden bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-        <div class="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-3 flex justify-between items-center gap-1 sm:gap-4">
-            
-            <!-- 1. LOGO & TÊN HỆ THỐNG (Chuyển thành BMS trên Mobile) -->
-            <div class="flex items-center gap-1 sm:gap-3 shrink-0">
-                <i class="fa-solid fa-hotel text-blue-600 text-base sm:text-2xl"></i>
-                <span class="font-extrabold text-xs sm:text-lg tracking-wide text-slate-900">
-                    <span class="sm:hidden">BMS</span>
-                    <span class="hidden sm:inline">BOOKING MANAGEMENT SYSTEM</span>
-                </span>
+        <header id="mainHeader" class="hidden bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+            <div class="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-3 flex justify-between items-center gap-1 sm:gap-4">
+                
+                <!-- 1. LOGO & TÊN HỆ THỐNG (Chuyển thành BMS trên Mobile) -->
+                <div class="flex items-center gap-1 sm:gap-3 shrink-0">
+                    <i class="fa-solid fa-hotel text-blue-600 text-base sm:text-2xl"></i>
+                    <span class="font-extrabold text-xs sm:text-lg tracking-wide text-slate-900">
+                        <span class="sm:hidden">BMS</span>
+                        <span class="hidden sm:inline">BOOKING MANAGEMENT SYSTEM</span>
+                    </span>
+                </div>
+    
+                <!-- 2. TABS (Đã bổ sung nút Phân Tích) -->
+                <nav class="flex gap-1 sm:gap-6 font-medium text-slate-600 text-xs sm:text-sm">
+                    <button onclick="switchMainTab('booking')" id="nav-booking" class="tab-btn active py-1 sm:py-2 px-1 sm:px-2 flex items-center">
+                        <i class="fa-solid fa-calendar-check sm:mr-1.5"></i> 
+                        <span class="text-[11px] sm:text-xs ml-0.5 sm:ml-0">Booking</span>
+                    </button>
+                    <button onclick="switchMainTab('management')" id="nav-management" class="tab-btn py-1 sm:py-2 px-1 sm:px-2 flex items-center">
+                        <i class="fa-solid fa-list-check sm:mr-1.5"></i> 
+                        <span class="text-[11px] sm:text-xs ml-0.5 sm:ml-0">Quản Lý</span>
+                    </button>
+                    <button onclick="switchMainTab('analysis')" id="nav-analysis" class="tab-btn py-1 sm:py-2 px-1 sm:px-2 flex items-center">
+                        <i class="fa-solid fa-chart-line sm:mr-1.5"></i> 
+                        <span class="text-[11px] sm:text-xs ml-0.5 sm:ml-0">Phân Tích</span>
+                    </button>
+                    <button onclick="switchMainTab('settings')" id="nav-settings" class="tab-btn py-1 sm:py-2 px-1 sm:px-2 flex items-center">
+                        <i class="fa-solid fa-sliders sm:mr-1.5"></i> 
+                        <span class="text-[11px] sm:text-xs ml-0.5 sm:ml-0">Cài Đặt</span>
+                    </button>
+                </nav>
+    
+                <!-- 3. LOGOUT (Đã lược bỏ thẻ hiển thị User/Admin, chỉ giữ lại nút Đăng xuất) -->
+                <div class="flex items-center gap-1 sm:gap-3 text-xs sm:text-sm shrink-0">
+                    <button onclick="logout()" title="Đăng xuất" class="text-red-600 hover:text-red-700 font-semibold text-xs border border-red-200 p-1.5 sm:px-3 sm:py-1.5 rounded-lg hover:bg-red-50 transition flex items-center gap-1">
+                        <i class="fa-solid fa-right-from-bracket"></i> 
+                        <span class="hidden sm:inline">Đăng xuất</span>
+                    </button>
+                </div>
+    
             </div>
-
-            <!-- 2. TABS (Giữ nguyên switchMainTab & ID) -->
-            <nav class="flex gap-1 sm:gap-6 font-medium text-slate-600 text-xs sm:text-sm">
-                <button onclick="switchMainTab('booking')" id="nav-booking" class="tab-btn active py-1 sm:py-2 px-1 sm:px-2 flex items-center">
-                    <i class="fa-solid fa-calendar-check sm:mr-1.5"></i> 
-                    <span class="text-[11px] sm:text-xs ml-0.5 sm:ml-0">Booking</span>
-                </button>
-                <button onclick="switchMainTab('management')" id="nav-management" class="tab-btn py-1 sm:py-2 px-1 sm:px-2 flex items-center">
-                    <i class="fa-solid fa-list-check sm:mr-1.5"></i> 
-                    <span class="text-[11px] sm:text-xs ml-0.5 sm:ml-0">Quản Lý</span>
-                </button>
-                <button onclick="switchMainTab('settings')" id="nav-settings" class="tab-btn py-1 sm:py-2 px-1 sm:px-2 flex items-center">
-                    <i class="fa-solid fa-sliders sm:mr-1.5"></i> 
-                    <span class="text-[11px] sm:text-xs ml-0.5 sm:ml-0">Cài Đặt</span>
-                </button>
-            </nav>
-
-            <!-- USER INFO & LOGOUT -->
-            <div class="flex items-center gap-1 sm:gap-3 text-xs sm:text-sm shrink-0">
-                <span class="bg-slate-100 px-2 sm:px-3 py-1 rounded-full font-semibold text-slate-700 text-[11px] sm:text-xs" id="userInfoDisplay">
-                    <i class="fa-solid fa-user-circle text-blue-600 mr-1"></i> Admin
-                </span>
-                <button onclick="logout()" title="Đăng xuất" class="text-red-600 hover:text-red-700 font-semibold text-xs border border-red-200 p-1.5 sm:px-3 sm:py-1.5 rounded-lg hover:bg-red-50 transition flex items-center gap-1">
-                    <i class="fa-solid fa-right-from-bracket"></i> 
-                    <span class="hidden sm:inline">Đăng xuất</span>
-                </button>
-            </div>
-            
-        </div>
-    </header>
+        </header>
 
     <!-- CONTAINER CHÍNH -->
     <main class="max-w-7xl mx-auto p-4 md:p-6">
@@ -593,7 +624,111 @@
             </form>
         </div>
     </div>
-
+    
+    <!-- ================= TAB 4: PHÂN TÍCH ================= -->
+    <div id="tab-analysis" class="tab-content" style="display: none; padding: 20px; font-family: sans-serif;">
+      
+      <h2 style="color: #333; margin-bottom: 20px;">📊 Phân Tích & Theo Dõi Giá Đối Thủ</h2>
+    
+      <!-- KHU VỰC 1: CÀI ĐẶT THÔNG TIN KHÁCH SẠN ĐỐI THỦ -->
+      <div style="background: #f9f9f9; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+        <h3 style="margin-top: 0; font-size: 16px; color: #444;">1. Cài đặt Đối thủ cạnh tranh (Tối đa 5 khách sạn)</h3>
+        
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+          <input type="text" id="compName" placeholder="Tên khách sạn đối thủ" style="flex: 2; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          <select id="compChannel" style="flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <option value="Agoda">Agoda</option>
+            <option value="Booking.com">Booking.com</option>
+          </select>
+          <input type="text" id="compUrl" placeholder="Link URL đối thủ trên OTA" style="flex: 3; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          <button onclick="saveCompetitor()" style="background: #007bff; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">Lưu Đối Thủ</button>
+        </div>
+    
+        <!-- Bảng danh sách đối thủ -->
+        <table style="width: 100%; border-collapse: collapse; background: white; font-size: 14px;">
+          <thead>
+            <tr style="background: #e9ecef; text-align: left;">
+              <th style="padding: 8px; border: 1px solid #ddd;">Tên Khách Sạn</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">Kênh OTA</th>
+              <th style="padding: 8px; border: 1px solid #ddd;">Link URL</th>
+              <th style="padding: 8px; border: 1px solid #ddd; text-align: center;">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="competitorTableBody">
+            <!-- Render danh sách đối thủ ở đây -->
+          </tbody>
+        </table>
+      </div>
+    
+      <!-- KHU VỰC 2: THEO DÕI GIÁ ĐỐI THỦ (MATRIX 7 NGÀY) -->
+      <div style="background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+        <h3 style="margin-top: 0; font-size: 16px; color: #444;">2. Biểu đồ & Ma trận Giá 7 Ngày (Thứ 2 - Chủ Nhật)</h3>
+        
+        <!-- Thanh Filter -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; gap: 10px;">
+            <select id="filterChannel" onchange="renderPriceMatrix()" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
+              <option value="ALL">Tất cả kênh OTA</option>
+              <option value="Agoda">Agoda</option>
+              <option value="Booking.com">Booking.com</option>
+            </select>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button onclick="changeWeek(-1)" style="padding: 5px 10px; cursor: pointer;">◀</button>
+            <button onclick="goToCurrentWeek()" style="padding: 5px 10px; cursor: pointer; background: #6c757d; color: white; border: none; border-radius: 4px;">Hôm nay</button>
+            <button onclick="changeWeek(1)" style="padding: 5px 10px; cursor: pointer;">▶</button>
+            <span id="currentWeekLabel" style="font-weight: bold; margin-left: 5px;">Tuần hiện tại</span>
+          </div>
+        </div>
+    
+        <!-- Bảng Matrix Chi Tiết -->
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: center;">
+            <thead>
+              <tr style="background: #343a40; color: white;">
+                <th style="padding: 10px; border: 1px solid #495057; text-align: left;">Khách sạn đối thủ</th>
+                <th style="padding: 10px; border: 1px solid #495057;">Thứ 2</th>
+                <th style="padding: 10px; border: 1px solid #495057;">Thứ 3</th>
+                <th style="padding: 10px; border: 1px solid #495057;">Thứ 4</th>
+                <th style="padding: 10px; border: 1px solid #495057;">Thứ 5</th>
+                <th style="padding: 10px; border: 1px solid #495057;">Thứ 6</th>
+                <th style="padding: 10px; border: 1px solid #495057;">Thứ 7</th>
+                <th style="padding: 10px; border: 1px solid #495057;">Chủ Nhật</th>
+              </tr>
+            </thead>
+            <tbody id="priceMatrixBody">
+              <!-- 5 dòng đối thủ + 1 dòng Min/Max sẽ được render động bằng JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    
+      <!-- KHU VỰC 3: CÔNG CỤ TÍNH TOÁN & ĐỀ XUẤT GIÁ -->
+      <div style="background: #f1f3f5; border: 1px solid #dee2e6; padding: 15px; border-radius: 8px;">
+        <h3 style="margin-top: 0; font-size: 16px; color: #444;">3. Công cụ Chuyển đổi & Đề xuất Giá</h3>
+        
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: center;">
+          <div>
+            <label style="display: block; font-size: 12px; color: #666; margin-bottom: 4px;">Giá bán cơ bản của Villa (VNĐ):</label>
+            <div style="display: flex; gap: 5px;">
+              <input type="number" id="basePriceInput" placeholder="Ví dụ: 2500000" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 160px;">
+              <button onclick="saveBasePrice()" style="background: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Lưu</button>
+            </div>
+          </div>
+    
+          <div>
+            <label style="display: block; font-size: 12px; color: #666; margin-bottom: 4px;">Tỷ lệ tăng/giảm (+/- %):</label>
+            <input type="number" id="percentChangeInput" placeholder="Ví dụ: 10 hoặc -10" oninput="calculateSuggestedPrice()" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 140px;">
+          </div>
+    
+          <div style="background: white; padding: 8px 15px; border: 1px solid #ced4da; border-radius: 4px; flex-grow: 1;">
+            <span style="font-size: 12px; color: #666; display: block;">Giá bán đề xuất:</span>
+            <strong id="suggestedPriceResult" style="font-size: 18px; color: #d9534f;">0 VNĐ</strong>
+          </div>
+        </div>
+      </div>
+    
+    </div>
 
 <!-- JAVASCRIPT SYSTEM ENGINE -->
     <script>
@@ -798,6 +933,8 @@
                 generateReport();
             } else if (tabName === 'settings') {
                 renderSettingsTables();
+            } else if (tabName === 'analysis') { // <-- THÊM MỚI TẠI ĐÂY
+                initAnalysisFeature();       // <-- THÊM MỚI TẠI ĐÂY
             }
         }
 
@@ -1569,7 +1706,7 @@ function generateReport() {
             if (typeof renderDailyReport === 'function') renderDailyReport();
         };
 
-// ==========================================
+        // ==========================================
         // FIX LỖI CRASH UNDEFINED TRONG MẢNG BOOKINGS + BẮT SỰ KIỆN TOÀN CỤC
         // ==========================================
         document.addEventListener('click', function(e) {
@@ -1741,6 +1878,252 @@ function generateReport() {
             document.body.appendChild(modal);
             console.log("--> [DEBUG SUCCESS] Modal đã được bật hiển thị thành công!");
         }, true);
+
+        // ==========================================
+        // PHÂN TÍCH ĐỐI THỦ (TỐI ĐA 5 KHÁCH SẠN)
+        // ==========================================
+           // Biến toàn cục lưu trữ dữ liệu tạm thời
+        let competitorsData = []; // Tối đa 5 đối thủ
+        let competitorPrices = {}; // Dữ liệu giá theo ngày
+        let currentBasePrice = 0;
+        let currentWeekOffset = 0; // 0 là tuần hiện tại, -1 là tuần trước, 1 là tuần sau
+        
+        // 1. Khởi động tính năng phân tích (gọi hàm này khi người dùng chuyển sang tab Phân tích)
+        function initAnalysisFeature() {
+            loadCompetitorsFromFirebase();
+            loadBasePriceFromFirebase();
+            renderPriceMatrix();
+        }
+        
+        // ==========================================
+        // QUẢN LÝ ĐỐI THỦ (TỐI ĐA 5 KHÁCH SẠN)
+        // ==========================================
+        function saveCompetitor() {
+            const name = document.getElementById('compName').value.trim();
+            const channel = document.getElementById('compChannel').value;
+            const url = document.getElementById('compUrl').value.trim();
+        
+            if (!name || !url) {
+                alert("Vui lòng nhập đầy đủ Tên khách sạn và Link URL!");
+                return;
+            }
+        
+            if (competitorsData.length >= 5) {
+                alert("Chỉ cho phép tối đa 5 khách sạn đối thủ!");
+                return;
+            }
+        
+            const newComp = {
+                id: "comp_" + Date.now(),
+                name: name,
+                channel: channel,
+                url: url
+            };
+        
+            competitorsData.push(newComp);
+            syncCompetitorsToFirebase();
+            
+            // Reset form input
+            document.getElementById('compName').value = '';
+            document.getElementById('compUrl').value = '';
+        }
+        
+        function deleteCompetitor(id) {
+            competitorsData = competitorsData.filter(c => c.id !== id);
+            syncCompetitorsToFirebase();
+        }
+        
+        function renderCompetitorTable() {
+            const tbody = document.getElementById('competitorTableBody');
+            tbody.innerHTML = '';
+        
+            if (competitorsData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="padding: 12px; text-align: center; color: #777;">Chưa có đối thủ nào được thiết lập (Tối đa 5).</td></tr>`;
+                return;
+            }
+        
+            competitorsData.forEach((comp, index) => {
+                tbody.innerHTML += `
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px; border: 1px solid #ddd;">${comp.name}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${comp.channel}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <a href="${comp.url}" target="_blank" title="${comp.url}" style="color: #007bff; text-decoration: none;">${comp.url}</a>
+                        </td>
+                        <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">
+                            <button onclick="deleteCompetitor('${comp.id}')" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer;">Xóa</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        
+        
+        // ==========================================
+        // QUẢN LÝ MA TRẬN GIÁ 7 NGÀY & HÀNG MIN/MAX
+        // ==========================================
+        function changeWeek(direction) {
+            currentWeekOffset += direction;
+            renderPriceMatrix();
+        }
+        
+        function goToCurrentWeek() {
+            currentWeekOffset = 0;
+            renderPriceMatrix();
+        }
+        
+        // Lấy danh sách 7 ngày trong tuần (Thứ 2 đến Chủ Nhật) dựa theo offset tuần
+        function getDaysOfWeek(offset) {
+            const curr = new Date();
+            const firstdayOfWeek = curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1) + (offset * 7);
+            
+            let days = [];
+            for (let i = 0; i < 7; i++) {
+                let nextDay = new Date(curr.setDate(firstdayOfWeek + i));
+                let yyyy = nextDay.getFullYear();
+                let mm = String(nextDay.getMonth() + 1).padStart(2, '0');
+                let dd = String(nextDay.getDate()).padStart(2, '0');
+                days.push({
+                    dateStr: `${yyyy}-${mm}-${dd}`,
+                    label: `${dd}/${mm}`
+                });
+            }
+            return days;
+        }
+        
+        function renderPriceMatrix() {
+            renderCompetitorTable();
+            
+            const tbody = document.getElementById('priceMatrixBody');
+            tbody.innerHTML = '';
+        
+            const selectedChannel = document.getElementById('filterChannel').value;
+            const weekDays = getDaysOfWeek(currentWeekOffset);
+            
+            // Cập nhật nhãn thời gian trên thanh filter
+            document.getElementById('currentWeekLabelinnerText') = `Tuần: ${weekDays[0].label} - ${weekDays[6].label}`;
+        
+            // Lọc danh sách đối thủ theo kênh OTA được chọn ở filter
+            let filteredComps = competitorsData.filter(c => selectedChannel === 'ALL' || c.channel === selectedChannel);
+        
+            if (filteredComps.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" style="padding: 20px; text-align: center; color: #777;">Không có đối thủ nào phù hợp với bộ lọc kênh OTA.</td></tr>`;
+                return;
+            }
+        
+            // Mảng lưu trữ giá Min và Max cho từng ngày (dùng để vẽ dòng 6)
+            let dailyMinPrices = Array(7).fill(Infinity);
+            let dailyMaxPrices = Array(7).fill(-Infinity);
+            let hasValidPrice = Array(7).fill(false);
+        
+            // 1. Render 5 dòng đối thủ
+            filteredComps.forEach(comp => {
+                let rowHtml = `<tr style="border-bottom: 1px solid #dee2e6;">`;
+                rowHtml += `<td style="padding: 10px; border: 1px solid #dee2e6; text-align: left; font-weight: 500;">${comp.name} <span style="font-size: 10px; color:#6c757d; display:block;">(${comp.channel})</span></td>`;
+        
+                weekDays.forEach((dayObj, dayIndex) => {
+                    // Lấy dữ liệu giá giả lập hoặc từ Firebase (ví dụ mẫu)
+                    const priceData = getPriceDataForCell(comp.id, dayObj.dateStr); 
+                    // priceData cấu trúc: { price: 2500000, trend: 'up'/'down'/'same', prevPrice: 2400000 }
+        
+                    if (priceData && priceData.price > 0) {
+                        hasValidPrice[dayIndex] = true;
+                        if (priceData.price < dailyMinPrices[dayIndex]) dailyMinPrices[dayIndex] = priceData.price;
+                        if (priceData.price > dailyMaxPrices[dayIndex]) dailyMaxPrices[dayIndex] = priceData.price;
+                    }
+        
+                    // Tính % chênh lệch với Giá cơ bản của villa bạn
+                    let percentDiffText = "-";
+                    let cellClass = "";
+                    
+                    if (priceData && priceData.price > 0 && currentBasePrice > 0) {
+                        const diffPercent = ((priceData.price - currentBasePrice) / currentBasePrice) * 100;
+                        percentDiffText = (diffPercent >= 0 ? "+" : "") + diffPercent.toFixed(1) + "% so với cơ bản";
+                    }
+        
+                    // Xác định Icon xu hướng theo yêu cầu
+                    let trendIcon = "➡️";
+                    let trendClass = "cell-same";
+                    if (priceData) {
+                        if (priceData.trend === 'up') { trendIcon = "⬆️"; trendClass = "cell-up"; }
+                        else if (priceData.trend === 'down') { trendIcon = "⬇️"; trendClass = "cell-down"; }
+                    }
+        
+                    const displayPrice = priceData && priceData.price > 0 ? priceData.price.toLocaleString('vi-VN') + " đ" : "Chưa có giá";
+        
+                    rowHtml += `
+                        <td class="${trendClass}" style="padding: 8px; border: 1px solid #dee2e6; vertical-align: middle;">
+                            <div style="font-weight: bold; font-size: 13px;">${displayPrice} ${trendIcon}</div>
+                            <div class="sub-percent" style="font-size: 11px; margin-top: 3px;">${percentDiffText}</div>
+                        </td>
+                    `;
+                });
+        
+                rowHtml += `</tr>`;
+                tbody.innerHTML += rowHtml;
+            });
+        
+            // 2. Render Hàng thứ 6: Tổng hợp Min / Max theo từng ngày (Tone xanh da trời)
+            let minMaxRowHtml = `<tr style="border-top: 2px solid #adb5bd;">`;
+            minMaxRowHtml += `<td style="padding: 10px; border: 1px solid #dee2e6; text-align: left; font-weight: bold; background: #e8f0fe; color: #1967d2;">Thị trường Min / Max</td>`;
+        
+            weekDays.forEach((dayObj, dayIndex) => {
+                const minStr = hasValidPrice[dayIndex] ? dailyMinPrices[dayIndex].toLocaleString('vi-VN') + " đ" : "-";
+                const maxStr = hasValidPrice[dayIndex] ? dailyMaxPrices[dayIndex].toLocaleString('vi-VN') + " đ" : "-";
+        
+                minMaxRowHtml += `
+                    <td class="cell-minmax" style="padding: 8px; border: 1px solid #dee2e6; font-size: 12px; text-align: center;">
+                        <div style="color: #137333; margin-bottom: 2px;">Min: ${minStr}</div>
+                        <div style="color: #c5221f;">Max: ${maxStr}</div>
+                    </td>
+                `;
+            });
+        
+            minMaxRowHtml += `</tr>`;
+            tbody.innerHTML += minMaxRowHtml;
+        }
+        
+        // Hàm giả lập lấy dữ liệu giá của đối thủ (Sau này sẽ map trực tiếp với dữ liệu từ Firebase)
+        function getPriceDataForCell(compId, dateStr) {
+            if (competitorPrices[dateStr] && competitorPrices[dateStr][compId]) {
+                return competitorPrices[dateStr][compId];
+            }
+            // Dữ liệu mẫu mặc định nếu chưa có crawl về
+            return { price: 0, trend: 'same' };
+        }
+        
+        
+        // ==========================================
+        // TÍCH HỢP ĐỒNG BỘ FIREBASE (CƠ BẢN)
+        // ==========================================
+        function saveBasePrice() {
+            currentBasePrice = parseFloat(document.getElementById('basePriceInput').value) || 0;
+            // Lưu lên Firebase (giả lập hoặc dùng UrlFetchApp/Firebase SDK tuỳ cấu trúc dự án của bạn)
+            localStorage.setItem('my_villa_base_price', currentBasePrice);
+            alert("Đã lưu giá bán cơ bản của Villa!");
+            renderPriceMatrix();
+        }
+        
+        function loadBasePriceFromFirebase() {
+            const saved = localStorage.getItem('my_villa_base_price');
+            if (saved) {
+                currentBasePrice = parseFloat(saved);
+                document.getElementById('basePriceInput').value = currentBasePrice;
+            }
+        }
+        
+        function syncCompetitorsToFirebase() {
+            // Lưu danh sách đối thủ vào localStorage/Firebase
+            localStorage.setItem('competitors_list', JSON.stringify(competitorsData));
+            renderPriceMatrix();
+        }
+        
+        function loadCompetitorsFromFirebase() {
+            const saved = localStorage.getItem('competitors_list');
+            if (saved) {
+                competitorsData = JSON.parse(saved);
+            }
+        }     
         
     </script>
 </body>
