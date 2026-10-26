@@ -2134,7 +2134,7 @@ function generateReport() {
 
         // --- 1. QUẢN LÝ DANH SÁCH ĐỐI THỦ (COMPETITORS) ---
         
-        // Lưu hoặc Thêm đối thủ mới lên Firebase
+        // Lưu hoặc Thêm đối thủ mới lên Firebase (Lưu vào hbs_data/competitors)
         function saveCompetitor() {
             const nameInput = document.getElementById('compName');
             const channelSelect = document.getElementById('compChannel');
@@ -2156,8 +2156,8 @@ function generateReport() {
                 return;
             }
         
-            // Dùng 'db' thay cho 'database'
-            const competitorsRef = db.ref('competitors');
+            // Trỏ vào trong nhánh hbs_data/competitors để tận dụng rules sẵn có
+            const competitorsRef = db.ref('hbs_data/competitors');
             
             competitorsRef.once('value').then((snapshot) => {
                 const data = snapshot.val() || {};
@@ -2185,9 +2185,9 @@ function generateReport() {
             });
         }
         
-        // Lắng nghe và hiển thị danh sách đối thủ ra bảng giao diện
+        // Lắng nghe và hiển thị danh sách đối thủ từ hbs_data/competitors
         function initCompetitorsListener() {
-            const competitorsRef = db.ref('competitors');
+            const competitorsRef = db.ref('hbs_data/competitors');
             
             competitorsRef.on('value', (snapshot) => {
                 const data = snapshot.val() || {};
@@ -2229,10 +2229,10 @@ function generateReport() {
             });
         }
         
-        // Xóa đối thủ khỏi Firebase
+        // Xóa đối thủ khỏi hbs_data/competitors
         function deleteCompetitor(competitorId) {
             if (confirm('Bạn có chắc chắn muốn xóa đối thủ này khỏi danh sách theo dõi không?')) {
-                db.ref('competitors/' + competitorId).remove().catch((error) => {
+                db.ref('hbs_data/competitors/' + competitorId).remove().catch((error) => {
                     alert('Xóa thất bại: ' + error.message);
                 });
             }
