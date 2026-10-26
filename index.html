@@ -2244,9 +2244,7 @@ function generateReport() {
             return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
-        // --- 2. MA TRẬN GIÁ 7 NGÀY & ĐIỀU HƯỚNG TUẦN ---
-        let currentWeekOffset = 0; // 0 là tuần hiện tại, -1 là tuần trước, +1 là tuần sau
-        
+        // --- 2. MA TRẬN GIÁ 7 NGÀY & ĐIỀU HƯỚNG TUẦN ---     
         // Lấy danh sách 7 ngày trong tuần (Thứ 2 đến Chủ Nhật) dựa theo offset tuần
         function getDaysOfCurrentWeek(offset = 0) {
             const now = new Date();
