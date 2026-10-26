@@ -2001,36 +2001,41 @@ function generateReport() {
         
         function renderPriceMatrix() {
             const tbody = document.getElementById('priceMatrixBody');
-            if (!tbody) return;
+            if (!tbody) {
+                console.error("❌ Không tìm thấy phần tử 'priceMatrixBody' trên giao diện!");
+                return;
+            }
             tbody.innerHTML = `<tr><td colspan="8" style="padding: 20px; text-align: center; color: #777;">Đang đồng bộ dữ liệu giá từ Firebase...</td></tr>`;
         
             const selectedChannel = document.getElementById('filterChannel').value;
             const weekDays = getDaysOfWeek(currentWeekOffset);
+            console.log("📅 Tuần đang hiển thị:", weekDays);
             
-            // Cập nhật nhãn thời gian trên thanh filter
             const labelEl = document.getElementById('currentWeekLabel');
             if (labelEl) {
                 labelEl.innerText = `Tuần: ${weekDays[0].label} - ${weekDays[6].label}`;
             }
         
-            // Lấy giá cơ bản hiện tại của Villa từ input cấu hình
             const basePriceInput = document.getElementById('basePriceInput');
             const currentBasePrice = basePriceInput ? Number(basePriceInput.value.replace(/\./g, '').trim()) || 0 : 0;
+            console.log("💰 Giá cơ bản hiện tại của Villa:", currentBasePrice);
         
-            // Lấy dữ liệu từ Firebase Realtime Database
             db.ref('hbs_data').once('value').then((snapshot) => {
                 const rootData = snapshot.val() || {};
-                const competitorsObj = rootData.competitors || {};
-                const pricesData = rootData.competitor_prices || {}; // Cấu trúc: pricesData[compId][dateStr] = price
+                console.log("🔥 Raw Data từ Firebase hbs_data:", rootData);
         
-                // Chuyển đổi danh sách đối thủ thành mảng
+                const competitorsObj = rootData.competitors || {};
+                const pricesData = rootData.competitor_prices || {};
+        
+                // Chuyển đối thủ sang mảng
                 const competitorsData = Object.keys(competitorsObj).map(id => ({ 
                     id: id, 
                     ...competitorsObj[id] 
                 }));
+                console.log("🏨 Danh sách đối thủ sau khi parse:", competitorsData);
         
-                // Lọc danh sách đối thủ theo kênh OTA được chọn ở filter
                 let filteredComps = competitorsData.filter(c => selectedChannel === 'ALL' || c.channel === selectedChannel);
+                console.log("🔍 Đối thủ sau khi lọc theo kênh:", filteredComps);
         
                 tbody.innerHTML = '';
         
@@ -2039,12 +2044,10 @@ function generateReport() {
                     return;
                 }
         
-                // Mảng lưu trữ giá Min và Max cho từng ngày (dùng để vẽ dòng tổng kết ở đáy)
                 let dailyMinPrices = Array(7).fill(Infinity);
                 let dailyMaxPrices = Array(7).fill(-Infinity);
                 let hasValidPrice = Array(7).fill(false);
         
-                // 1. Render các dòng đối thủ
                 filteredComps.forEach(comp => {
                     let rowHtml = `<tr style="border-bottom: 1px solid #dee2e6;" class="hover:bg-slate-50 transition">`;
                     rowHtml += `<td style="padding: 10px; border: 1px solid #dee2e6; text-align: left; font-weight: 500;">${escapeHtml(comp.name)} <span style="font-size: 10px; color:#6c757d; display:block;">(${escapeHtml(comp.channel)})</span></td>`;
@@ -2060,9 +2063,9 @@ function generateReport() {
                             if (currentPrice > dailyMaxPrices[dayIndex]) dailyMaxPrices[dayIndex] = currentPrice;
                         }
         
-                        // --- TẦNG 1: Tính xu hướng so với ngày hôm trước của chính đối thủ ---
+                        // --- TẦNG 1: So sánh với ngày hôm trước ---
                         let trendIcon = "➡️";
-                        let trendClass = "cell-same";
+                        let trendClass = "cell-same text-slate-500 bg-slate-50";
                         let diffText = "0% so với hôm trước";
         
                         if (currentPrice !== null && currentPrice > 0) {
@@ -2070,7 +2073,6 @@ function generateReport() {
                             if (dayIndex > 0) {
                                 prevDateStr = weekDays[dayIndex - 1].dateStr;
                             } else {
-                                // Nếu là thứ Hai, lấy ngày Chủ Nhật tuần trước
                                 const d = new Date(dayObj.dateStr);
                                 d.setDate(d.getDate() - 1);
                                 prevDateStr = d.toISOString().split('T')[0];
@@ -2084,11 +2086,11 @@ function generateReport() {
                                 const diffPct = (diffVal / prevPrice) * 100;
                                 if (diffVal > 0) {
                                     trendIcon = "⬆️";
-                                    trendClass = "cell-up text-red-600 bg-red-50";
+                                    trendClass = "cell-up text-red-600 bg-red-50 font-semibold";
                                     diffText = `+${diffPct.toFixed(1)}% so với hôm trước`;
                                 } else if (diffVal < 0) {
                                     trendIcon = "⬇️";
-                                    trendClass = "cell-down text-emerald-600 bg-emerald-50";
+                                    trendClass = "cell-down text-emerald-600 bg-emerald-50 font-semibold";
                                     diffText = `${diffPct.toFixed(1)}% so với hôm trước`;
                                 } else {
                                     trendIcon = "➡️";
@@ -2098,7 +2100,7 @@ function generateReport() {
                             }
                         }
         
-                        // --- TẦNG 2: Tính % chênh lệch với Giá cơ bản của Villa ---
+                        // --- TẦNG 2: So sánh với giá Villa ---
                         let percentDiffText = "So với cơ bản: -";
                         if (currentPrice !== null && currentPrice > 0 && currentBasePrice > 0) {
                             const diffPercent = ((currentPrice - currentBasePrice) / currentBasePrice) * 100;
@@ -2115,10 +2117,10 @@ function generateReport() {
                                     onchange="updateCompetitorPrice('${comp.id}', '${dayObj.dateStr}', this.value)"
                                     style="width: 90px; padding: 4px; text-align: center; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 4px; background: #fdfdfd;"
                                 />
-                                <div style="font-weight: bold; font-size: 11px; padding: 2px; border-radius: 3px;" class="${trendClass}">
+                                <div style="font-weight: bold; font-size: 11px; padding: 3px; border-radius: 3px;" class="${trendClass}">
                                     ${trendIcon} ${diffText}
                                 </div>
-                                <div class="sub-percent" style="font-size: 10px; margin-top: 2px; color: #475569; background: #f1f5f9; padding: 2px; border-radius: 3px;">
+                                <div class="sub-percent" style="font-size: 10px; margin-top: 2px; color: #475569; background: #f1f5f9; padding: 3px; border-radius: 3px;">
                                     ${percentDiffText}
                                 </div>
                             </td>
@@ -2129,7 +2131,7 @@ function generateReport() {
                     tbody.innerHTML += rowHtml;
                 });
         
-                // 2. Render Hàng thứ 6: Tổng hợp Min / Max theo từng ngày (Tone xanh da trời chuẩn yêu cầu)
+                // Hàng Min / Max
                 let minMaxRowHtml = `<tr style="border-top: 2px solid #adb5bd; background: #e8f0fe;">`;
                 minMaxRowHtml += `<td style="padding: 10px; border: 1px solid #dee2e6; text-align: left; font-weight: bold; color: #1967d2; font-size: 12px;">📊 Thấp nhất / Cao nhất</td>`;
         
@@ -2147,6 +2149,10 @@ function generateReport() {
         
                 minMaxRowHtml += `</tr>`;
                 tbody.innerHTML += minMaxRowHtml;
+                console.log("✅ Render Matrix hoàn tất thành công!");
+        
+            }).catch(err => {
+                console.error("❌ Lỗi khi đọc dữ liệu từ Firebase cho Matrix:", err);
             });
         }
         
