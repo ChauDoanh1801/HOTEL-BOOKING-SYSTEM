@@ -2243,6 +2243,197 @@ function generateReport() {
             if (!text) return '';
             return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
+
+        // --- 2. MA TRẬN GIÁ 7 NGÀY & ĐIỀU HƯỚNG TUẦN ---
+        let currentWeekOffset = 0; // 0 là tuần hiện tại, -1 là tuần trước, +1 là tuần sau
+        
+        // Lấy danh sách 7 ngày trong tuần (Thứ 2 đến Chủ Nhật) dựa theo offset tuần
+        function getDaysOfCurrentWeek(offset = 0) {
+            const now = new Date();
+            // Chuyển về Thứ 2 của tuần hiện tại
+            const currentDayOfWeek = now.getDay(); // 0 là CN, 1 là T2, ...
+            const distanceToMonday = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+            
+            const monday = new Date(now);
+            monday.setDate(now.getDate() + distanceToMonday + (offset * 7));
+        
+            const weekDays = [];
+            const options = { day: '2-digit', month: '2-digit' };
+        
+            for (let i = 0; i < 7; i++) {
+                const day = new Date(monday);
+                day.setDate(monday.getDate() + i);
+                
+                // Tạo định dạng YYYY-MM-DD làm key lưu trữ trên DB
+                const year = day.getFullYear();
+                const month = String(day.getMonth() + 1).padStart(2, '0');
+                const dateStr = String(day.getDate()).padStart(2, '0');
+                const dateKey = `${year}-${month}-${dateStr}`;
+        
+                weekDays.push({
+                    dateKey: dateKey,
+                    label: day.toLocaleDateString('vi-VN', options), // Hiển thị kiểu DD/MM
+                    dayName: i === 6 ? 'Chủ Nhật' : `Thứ ${i + 2}`
+                });
+            }
+        
+            return weekDays;
+        }
+        
+        // Thay đổi tuần (prev/next)
+        function changeWeek(direction) {
+            currentWeekOffset += direction;
+            renderPriceMatrix();
+        }
+        
+        // Quay về tuần hiện tại
+        function goToCurrentWeek() {
+            currentWeekOffset = 0;
+            renderPriceMatrix();
+        }
+        
+        // Render Ma trận giá 7 ngày ra giao diện
+        function renderPriceMatrix() {
+            const weekDays = getDaysOfCurrentWeek(currentWeekOffset);
+            
+            // Cập nhật nhãn hiển thị tuần
+            const labelEl = document.getElementById('currentWeekLabel');
+            if (labelEl) {
+                labelEl.innerText = `Tuần: ${weekDays[0].label} - ${weekDays[6].label}`;
+            }
+        
+            const filterChannel = document.getElementById('filterChannel').value;
+            const tbody = document.getElementById('priceMatrixBody');
+            tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-400">Đang tải dữ liệu giá...</td></tr>`;
+        
+            // Lấy dữ liệu từ Firebase
+            db.ref('hbs_data').once('value').then((snapshot) => {
+                const rootData = snapshot.val() || {};
+                const competitors = rootData.competitors || {};
+                const pricesData = rootData.competitor_prices || {}; // Cấu trúc lưu giá: pricesData[competitorId][dateKey] = price
+        
+                tbody.innerHTML = '';
+        
+                const compList = Object.keys(competitors).map(id => ({ id, ...competitors[id] }));
+        
+                // Lọc theo kênh OTA nếu có chọn filter
+                const filteredComps = compList.filter(comp => {
+                    if (filterChannel === 'ALL') return true;
+                    return comp.channel === filterChannel;
+                });
+        
+                if (filteredComps.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-slate-400">Không có đối thủ nào phù hợp với bộ lọc kênh.</td></tr>`;
+                    return;
+                }
+        
+                filteredComps.forEach(comp => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+        
+                    // Cột tên đối thủ và kênh
+                    let html = `
+                        <td class="p-3 text-left font-medium text-slate-800">
+                            <div>${escapeHtml(comp.name)}</div>
+                            <span class="text-xs text-slate-400 font-normal">${escapeHtml(comp.channel)}</span>
+                        </td>
+                    `;
+        
+                    // 7 cột tương ứng với 7 ngày trong tuần
+                    weekDays.forEach(day => {
+                        // Lấy giá đã lưu (nếu có), nếu chưa có để trống hoặc hiển thị nút nhập
+                        const price = (pricesData[comp.id] && pricesData[comp.id][day.dateKey]) ? pricesData[comp.id][day.dateKey] : '';
+                        
+                        html += `
+                            <td class="p-2 border-l border-slate-100 text-center">
+                                <input type="text" 
+                                    value="${price ? Number(price).toLocaleString('vi-VN') : ''}" 
+                                    placeholder="Nhập giá" 
+                                    onchange="updateCompetitorPrice('${comp.id}', '${day.dateKey}', this.value)"
+                                    class="w-24 p-1.5 text-xs text-center border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50 hover:bg-white transition"
+                                />
+                            </td>
+                        `;
+                    });
+        
+                    tr.innerHTML = html;
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+        
+        // Cập nhật giá theo ngày của đối thủ lên Firebase
+        function updateCompetitorPrice(competitorId, dateKey, rawValue) {
+            // Xóa dấu phẩy định dạng nếu người dùng nhập sẵn
+            const cleanVal = rawValue.replace(/\./g, '').trim();
+            const price = cleanVal === '' ? null : Number(cleanVal);
+        
+            if (price !== null && isNaN(price)) {
+                alert('Vui lòng nhập định dạng số hợp lệ!');
+                renderPriceMatrix();
+                return;
+            }
+        
+            db.ref(`hbs_data/competitor_prices/${competitorId}/${dateKey}`).set(price).catch(error => {
+                alert('Không thể lưu giá: ' + error.message);
+            });
+        }
+
+
+        // --- 3. CÔNG CỤ TÍNH TOÁN & ĐỀ XUẤT GIÁ ---
+        
+        // Lưu giá cơ bản của Villa lên Firebase (hbs_data/my_villa_settings/basePrice)
+        function saveBasePrice() {
+            const input = document.getElementById('basePriceInput');
+            const rawVal = input.value.replace(/\./g, '').trim();
+            const basePrice = Number(rawVal);
+        
+            if (isNaN(basePrice) || basePrice < 0) {
+                alert('Vui lòng nhập mức giá cơ bản hợp lệ!');
+                input.focus();
+                return;
+            }
+        
+            db.ref('hbs_data/my_villa_settings/basePrice').set(basePrice, (error) => {
+                if (error) {
+                    alert('Lưu giá cơ bản thất bại: ' + error.message);
+                } else {
+                    alert('Đã lưu mức giá cơ bản của Villa thành công!');
+                    calculateSuggestedPrice();
+                }
+            });
+        }
+        
+        // Tải giá cơ bản từ Firebase khi mở tab
+        function loadBasePriceFromFirebase() {
+            db.ref('hbs_data/my_villa_settings/basePrice').once('value').then((snapshot) => {
+                const basePrice = snapshot.val();
+                const input = document.getElementById('basePriceInput');
+                if (basePrice !== null && input) {
+                    input.value = basePrice;
+                    calculateSuggestedPrice();
+                }
+            });
+        }
+        
+        // Tính toán giá bán đề xuất dựa trên tỷ lệ % tăng/giảm
+        function calculateSuggestedPrice() {
+            const baseInput = document.getElementById('basePriceInput');
+            const percentInput = document.getElementById('percentChangeInput');
+            const resultEl = document.getElementById('suggestedPriceResult');
+        
+            if (!baseInput || !percentInput || !resultEl) return;
+        
+            const basePrice = Number(baseInput.value.replace(/\./g, '').trim()) || 0;
+            const percent = Number(percentInput.value.trim()) || 0;
+        
+            // Công thức tính giá đề xuất = Giá cơ bản * (1 + % / 100)
+            const suggestedPrice = basePrice * (1 + percent / 100);
+        
+            // Format hiển thị tiền tệ VNĐ
+            resultEl.innerText = Math.round(suggestedPrice).toLocaleString('vi-VN') + ' VNĐ';
+        }
+        
     </script>
 </body>
 </html>
