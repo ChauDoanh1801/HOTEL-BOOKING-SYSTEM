@@ -1899,6 +1899,7 @@ function generateReport() {
             loadCompetitorsFromFirebase();
             loadBasePriceFromFirebase();
             renderPriceMatrix();
+            initCompetitorsListener();
         }
         
         // ==========================================
@@ -2130,7 +2131,118 @@ function generateReport() {
                 competitorsData = JSON.parse(saved);
             }
         }     
+
+        // --- 1. QUẢN LÝ DANH SÁCH ĐỐI THỦ (COMPETITORS) ---
         
+        // Lưu hoặc Thêm đối thủ mới lên Firebase
+        function saveCompetitor() {
+            const nameInput = document.getElementById('compName');
+            const channelSelect = document.getElementById('compChannel');
+            const urlInput = document.getElementById('compUrl');
+        
+            const name = nameInput.value.trim();
+            const channel = channelSelect.value;
+            const url = urlInput.value.trim();
+        
+            if (!name) {
+                alert('Vui lòng nhập tên khách sạn đối thủ!');
+                nameInput.focus();
+                return;
+            }
+        
+            if (!url) {
+                alert('Vui lòng nhập Link URL đối thủ trên OTA!');
+                urlInput.focus();
+                return;
+            }
+        
+            // Dùng 'db' thay cho 'database'
+            const competitorsRef = db.ref('competitors');
+            
+            competitorsRef.once('value').then((snapshot) => {
+                const data = snapshot.val() || {};
+                const competitorKeys = Object.keys(data);
+        
+                if (competitorKeys.length >= 5) {
+                    alert('Hệ thống giới hạn tối đa 5 đối thủ cạnh tranh!');
+                    return;
+                }
+        
+                const newCompetitorRef = competitorsRef.push();
+                newCompetitorRef.set({
+                    name: name,
+                    channel: channel,
+                    url: url,
+                    createdAt: Date.now()
+                }, (error) => {
+                    if (error) {
+                        alert('Lưu đối thủ thất bại: ' + error.message);
+                    } else {
+                        nameInput.value = '';
+                        urlInput.value = '';
+                    }
+                });
+            });
+        }
+        
+        // Lắng nghe và hiển thị danh sách đối thủ ra bảng giao diện
+        function initCompetitorsListener() {
+            const competitorsRef = db.ref('competitors');
+            
+            competitorsRef.on('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                const tbody = document.getElementById('competitorTableBody');
+                tbody.innerHTML = '';
+        
+                const competitorsList = [];
+        
+                Object.keys(data).forEach((key) => {
+                    competitorsList.push({ id: key, ...data[key] });
+                });
+        
+                if (competitorsList.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">Chưa có đối thủ nào được cấu hình.</td></tr>`;
+                    return;
+                }
+        
+                competitorsList.forEach((comp) => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50 transition';
+                    tr.innerHTML = `
+                        <td class="p-3 font-medium text-slate-800">${escapeHtml(comp.name)}</td>
+                        <td class="p-3">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${comp.channel === 'Agoda' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}">
+                                ${escapeHtml(comp.channel)}
+                            </span>
+                        </td>
+                        <td class="p-3 max-w-xs truncate">
+                            <a href="${escapeHtml(comp.url)}" target="_blank" class="text-blue-600 hover:underline text-xs truncate block">${escapeHtml(comp.url)}</a>
+                        </td>
+                        <td class="p-3 text-center">
+                            <button onclick="deleteCompetitor('${comp.id}')" title="Xóa đối thủ" class="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            });
+        }
+        
+        // Xóa đối thủ khỏi Firebase
+        function deleteCompetitor(competitorId) {
+            if (confirm('Bạn có chắc chắn muốn xóa đối thủ này khỏi danh sách theo dõi không?')) {
+                db.ref('competitors/' + competitorId).remove().catch((error) => {
+                    alert('Xóa thất bại: ' + error.message);
+                });
+            }
+        }
+        
+        // Hàm hỗ trợ chống XSS cơ bản
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
     </script>
 </body>
 </html>
