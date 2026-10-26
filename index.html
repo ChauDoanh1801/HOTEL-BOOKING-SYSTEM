@@ -1967,8 +1967,9 @@ function generateReport() {
         
         
         // ==========================================
-        // QUẢN LÝ MA TRẬN GIÁ 7 NGÀY & HÀNG MIN/MAX
+        // QUẢN LÝ MA TRẬN GIÁ 7 NGÀY & HÀNG MIN/MAX (HOÀN CHỈNH)
         // ==========================================
+        
         function changeWeek(direction) {
             currentWeekOffset += direction;
             renderPriceMatrix();
@@ -1986,7 +1987,7 @@ function generateReport() {
             
             let days = [];
             for (let i = 0; i < 7; i++) {
-                let nextDay = new Date(curr.setDate(firstdayOfWeek + i));
+                let nextDay = new Date(new Date(curr).setDate(firstdayOfWeek + i));
                 let yyyy = nextDay.getFullYear();
                 let mm = String(nextDay.getMonth() + 1).padStart(2, '0');
                 let dd = String(nextDay.getDate()).padStart(2, '0');
@@ -1999,104 +2000,179 @@ function generateReport() {
         }
         
         function renderPriceMatrix() {
-            renderCompetitorTable();
-            
             const tbody = document.getElementById('priceMatrixBody');
-            tbody.innerHTML = '';
+            if (!tbody) return;
+            tbody.innerHTML = `<tr><td colspan="8" style="padding: 20px; text-align: center; color: #777;">Đang đồng bộ dữ liệu giá từ Firebase...</td></tr>`;
         
             const selectedChannel = document.getElementById('filterChannel').value;
             const weekDays = getDaysOfWeek(currentWeekOffset);
             
             // Cập nhật nhãn thời gian trên thanh filter
-            document.getElementById('currentWeekLabel').innerText = `Tuần: ${weekDays[0].label} - ${weekDays[6].label}`;
-        
-            // Lọc danh sách đối thủ theo kênh OTA được chọn ở filter
-            let filteredComps = competitorsData.filter(c => selectedChannel === 'ALL' || c.channel === selectedChannel);
-        
-            if (filteredComps.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" style="padding: 20px; text-align: center; color: #777;">Không có đối thủ nào phù hợp với bộ lọc kênh OTA.</td></tr>`;
-                return;
+            const labelEl = document.getElementById('currentWeekLabel');
+            if (labelEl) {
+                labelEl.innerText = `Tuần: ${weekDays[0].label} - ${weekDays[6].label}`;
             }
         
-            // Mảng lưu trữ giá Min và Max cho từng ngày (dùng để vẽ dòng 6)
-            let dailyMinPrices = Array(7).fill(Infinity);
-            let dailyMaxPrices = Array(7).fill(-Infinity);
-            let hasValidPrice = Array(7).fill(false);
+            // Lấy giá cơ bản hiện tại của Villa từ input cấu hình
+            const basePriceInput = document.getElementById('basePriceInput');
+            const currentBasePrice = basePriceInput ? Number(basePriceInput.value.replace(/\./g, '').trim()) || 0 : 0;
         
-            // 1. Render 5 dòng đối thủ
-            filteredComps.forEach(comp => {
-                let rowHtml = `<tr style="border-bottom: 1px solid #dee2e6;">`;
-                rowHtml += `<td style="padding: 10px; border: 1px solid #dee2e6; text-align: left; font-weight: 500;">${comp.name} <span style="font-size: 10px; color:#6c757d; display:block;">(${comp.channel})</span></td>`;
+            // Lấy dữ liệu từ Firebase Realtime Database
+            db.ref('hbs_data').once('value').then((snapshot) => {
+                const rootData = snapshot.val() || {};
+                const competitorsObj = rootData.competitors || {};
+                const pricesData = rootData.competitor_prices || {}; // Cấu trúc: pricesData[compId][dateStr] = price
+        
+                // Chuyển đổi danh sách đối thủ thành mảng
+                const competitorsData = Object.keys(competitorsObj).map(id => ({ 
+                    id: id, 
+                    ...competitorsObj[id] 
+                }));
+        
+                // Lọc danh sách đối thủ theo kênh OTA được chọn ở filter
+                let filteredComps = competitorsData.filter(c => selectedChannel === 'ALL' || c.channel === selectedChannel);
+        
+                tbody.innerHTML = '';
+        
+                if (filteredComps.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" style="padding: 20px; text-align: center; color: #777;">Không có đối thủ nào phù hợp với bộ lọc kênh OTA.</td></tr>`;
+                    return;
+                }
+        
+                // Mảng lưu trữ giá Min và Max cho từng ngày (dùng để vẽ dòng tổng kết ở đáy)
+                let dailyMinPrices = Array(7).fill(Infinity);
+                let dailyMaxPrices = Array(7).fill(-Infinity);
+                let hasValidPrice = Array(7).fill(false);
+        
+                // 1. Render các dòng đối thủ
+                filteredComps.forEach(comp => {
+                    let rowHtml = `<tr style="border-bottom: 1px solid #dee2e6;" class="hover:bg-slate-50 transition">`;
+                    rowHtml += `<td style="padding: 10px; border: 1px solid #dee2e6; text-align: left; font-weight: 500;">${escapeHtml(comp.name)} <span style="font-size: 10px; color:#6c757d; display:block;">(${escapeHtml(comp.channel)})</span></td>`;
+        
+                    weekDays.forEach((dayObj, dayIndex) => {
+                        const compPrices = pricesData[comp.id] || {};
+                        const currentRawPrice = compPrices[dayObj.dateStr];
+                        const currentPrice = (currentRawPrice !== undefined && currentRawPrice !== null && currentRawPrice !== '') ? Number(currentRawPrice) : null;
+        
+                        if (currentPrice !== null && !isNaN(currentPrice) && currentPrice > 0) {
+                            hasValidPrice[dayIndex] = true;
+                            if (currentPrice < dailyMinPrices[dayIndex]) dailyMinPrices[dayIndex] = currentPrice;
+                            if (currentPrice > dailyMaxPrices[dayIndex]) dailyMaxPrices[dayIndex] = currentPrice;
+                        }
+        
+                        // --- TẦNG 1: Tính xu hướng so với ngày hôm trước của chính đối thủ ---
+                        let trendIcon = "➡️";
+                        let trendClass = "cell-same";
+                        let diffText = "0% so với hôm trước";
+        
+                        if (currentPrice !== null && currentPrice > 0) {
+                            let prevDateStr = '';
+                            if (dayIndex > 0) {
+                                prevDateStr = weekDays[dayIndex - 1].dateStr;
+                            } else {
+                                // Nếu là thứ Hai, lấy ngày Chủ Nhật tuần trước
+                                const d = new Date(dayObj.dateStr);
+                                d.setDate(d.getDate() - 1);
+                                prevDateStr = d.toISOString().split('T')[0];
+                            }
+        
+                            const prevRawPrice = compPrices[prevDateStr];
+                            const prevPrice = (prevRawPrice !== undefined && prevRawPrice !== null && prevRawPrice !== '') ? Number(prevRawPrice) : null;
+        
+                            if (prevPrice !== null && !isNaN(prevPrice) && prevPrice > 0) {
+                                const diffVal = currentPrice - prevPrice;
+                                const diffPct = (diffVal / prevPrice) * 100;
+                                if (diffVal > 0) {
+                                    trendIcon = "⬆️";
+                                    trendClass = "cell-up text-red-600 bg-red-50";
+                                    diffText = `+${diffPct.toFixed(1)}% so với hôm trước`;
+                                } else if (diffVal < 0) {
+                                    trendIcon = "⬇️";
+                                    trendClass = "cell-down text-emerald-600 bg-emerald-50";
+                                    diffText = `${diffPct.toFixed(1)}% so với hôm trước`;
+                                } else {
+                                    trendIcon = "➡️";
+                                    trendClass = "cell-same text-slate-500 bg-slate-50";
+                                    diffText = "0% so với hôm trước";
+                                }
+                            }
+                        }
+        
+                        // --- TẦNG 2: Tính % chênh lệch với Giá cơ bản của Villa ---
+                        let percentDiffText = "So với cơ bản: -";
+                        if (currentPrice !== null && currentPrice > 0 && currentBasePrice > 0) {
+                            const diffPercent = ((currentPrice - currentBasePrice) / currentBasePrice) * 100;
+                            percentDiffText = (diffPercent >= 0 ? "+" : "") + diffPercent.toFixed(1) + "% so với cơ bản";
+                        }
+        
+                        const displayVal = currentPrice !== null && !isNaN(currentPrice) ? currentPrice.toLocaleString('vi-VN') : '';
+        
+                        rowHtml += `
+                            <td style="padding: 8px; border: 1px solid #dee2e6; vertical-align: middle; text-align: center;">
+                                <input type="text" 
+                                    value="${displayVal}" 
+                                    placeholder="Nhập giá" 
+                                    onchange="updateCompetitorPrice('${comp.id}', '${dayObj.dateStr}', this.value)"
+                                    style="width: 90px; padding: 4px; text-align: center; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 4px; background: #fdfdfd;"
+                                />
+                                <div style="font-weight: bold; font-size: 11px; padding: 2px; border-radius: 3px;" class="${trendClass}">
+                                    ${trendIcon} ${diffText}
+                                </div>
+                                <div class="sub-percent" style="font-size: 10px; margin-top: 2px; color: #475569; background: #f1f5f9; padding: 2px; border-radius: 3px;">
+                                    ${percentDiffText}
+                                </div>
+                            </td>
+                        `;
+                    });
+        
+                    rowHtml += `</tr>`;
+                    tbody.innerHTML += rowHtml;
+                });
+        
+                // 2. Render Hàng thứ 6: Tổng hợp Min / Max theo từng ngày (Tone xanh da trời chuẩn yêu cầu)
+                let minMaxRowHtml = `<tr style="border-top: 2px solid #adb5bd; background: #e8f0fe;">`;
+                minMaxRowHtml += `<td style="padding: 10px; border: 1px solid #dee2e6; text-align: left; font-weight: bold; color: #1967d2; font-size: 12px;">📊 Thấp nhất / Cao nhất</td>`;
         
                 weekDays.forEach((dayObj, dayIndex) => {
-                    // Lấy dữ liệu giá giả lập hoặc từ Firebase (ví dụ mẫu)
-                    const priceData = getPriceDataForCell(comp.id, dayObj.dateStr); 
-                    // priceData cấu trúc: { price: 2500000, trend: 'up'/'down'/'same', prevPrice: 2400000 }
+                    const minStr = hasValidPrice[dayIndex] ? dailyMinPrices[dayIndex].toLocaleString('vi-VN') + " đ" : "-";
+                    const maxStr = hasValidPrice[dayIndex] ? dailyMaxPrices[dayIndex].toLocaleString('vi-VN') + " đ" : "-";
         
-                    if (priceData && priceData.price > 0) {
-                        hasValidPrice[dayIndex] = true;
-                        if (priceData.price < dailyMinPrices[dayIndex]) dailyMinPrices[dayIndex] = priceData.price;
-                        if (priceData.price > dailyMaxPrices[dayIndex]) dailyMaxPrices[dayIndex] = priceData.price;
-                    }
-        
-                    // Tính % chênh lệch với Giá cơ bản của villa bạn
-                    let percentDiffText = "-";
-                    let cellClass = "";
-                    
-                    if (priceData && priceData.price > 0 && currentBasePrice > 0) {
-                        const diffPercent = ((priceData.price - currentBasePrice) / currentBasePrice) * 100;
-                        percentDiffText = (diffPercent >= 0 ? "+" : "") + diffPercent.toFixed(1) + "% so với cơ bản";
-                    }
-        
-                    // Xác định Icon xu hướng theo yêu cầu
-                    let trendIcon = "➡️";
-                    let trendClass = "cell-same";
-                    if (priceData) {
-                        if (priceData.trend === 'up') { trendIcon = "⬆️"; trendClass = "cell-up"; }
-                        else if (priceData.trend === 'down') { trendIcon = "⬇️"; trendClass = "cell-down"; }
-                    }
-        
-                    const displayPrice = priceData && priceData.price > 0 ? priceData.price.toLocaleString('vi-VN') + " đ" : "Chưa có giá";
-        
-                    rowHtml += `
-                        <td class="${trendClass}" style="padding: 8px; border: 1px solid #dee2e6; vertical-align: middle;">
-                            <div style="font-weight: bold; font-size: 13px;">${displayPrice} ${trendIcon}</div>
-                            <div class="sub-percent" style="font-size: 11px; margin-top: 3px;">${percentDiffText}</div>
+                    minMaxRowHtml += `
+                        <td class="cell-minmax" style="padding: 8px; border: 1px solid #dee2e6; font-size: 11px; text-align: center; background: #f8fafc;">
+                            <div style="color: #137333; font-weight: bold; margin-bottom: 2px;">Min: ${minStr}</div>
+                            <div style="color: #c5221f; font-weight: bold;">Max: ${maxStr}</div>
                         </td>
                     `;
                 });
         
-                rowHtml += `</tr>`;
-                tbody.innerHTML += rowHtml;
+                minMaxRowHtml += `</tr>`;
+                tbody.innerHTML += minMaxRowHtml;
             });
-        
-            // 2. Render Hàng thứ 6: Tổng hợp Min / Max theo từng ngày (Tone xanh da trời)
-            let minMaxRowHtml = `<tr style="border-top: 2px solid #adb5bd;">`;
-            minMaxRowHtml += `<td style="padding: 10px; border: 1px solid #dee2e6; text-align: left; font-weight: bold; background: #e8f0fe; color: #1967d2;">Thị trường Min / Max</td>`;
-        
-            weekDays.forEach((dayObj, dayIndex) => {
-                const minStr = hasValidPrice[dayIndex] ? dailyMinPrices[dayIndex].toLocaleString('vi-VN') + " đ" : "-";
-                const maxStr = hasValidPrice[dayIndex] ? dailyMaxPrices[dayIndex].toLocaleString('vi-VN') + " đ" : "-";
-        
-                minMaxRowHtml += `
-                    <td class="cell-minmax" style="padding: 8px; border: 1px solid #dee2e6; font-size: 12px; text-align: center;">
-                        <div style="color: #137333; margin-bottom: 2px;">Min: ${minStr}</div>
-                        <div style="color: #c5221f;">Max: ${maxStr}</div>
-                    </td>
-                `;
-            });
-        
-            minMaxRowHtml += `</tr>`;
-            tbody.innerHTML += minMaxRowHtml;
         }
         
-        // Hàm giả lập lấy dữ liệu giá của đối thủ (Sau này sẽ map trực tiếp với dữ liệu từ Firebase)
-        function getPriceDataForCell(compId, dateStr) {
-            if (competitorPrices[dateStr] && competitorPrices[dateStr][compId]) {
-                return competitorPrices[dateStr][compId];
+        // Hàm cập nhật giá đối thủ theo ngày lên Firebase Realtime Database
+        function updateCompetitorPrice(competitorId, dateStr, rawValue) {
+            const cleanVal = rawValue.replace(/\./g, '').trim();
+            const price = cleanVal === '' ? null : Number(cleanVal);
+        
+            if (price !== null && isNaN(price)) {
+                alert('Vui lòng nhập định dạng số hợp lệ!');
+                renderPriceMatrix();
+                return;
             }
-            // Dữ liệu mẫu mặc định nếu chưa có crawl về
-            return { price: 0, trend: 'same' };
+        
+            db.ref(`hbs_data/competitor_prices/${competitorId}/${dateStr}`).set(price).then(() => {
+                // Tự động load lại ma trận để cập nhật tức thì phần trăm chênh lệch và Min/Max
+                renderPriceMatrix();
+            }).catch(error => {
+                alert('Không thể lưu giá: ' + error.message);
+            });
+        }
+        
+        // Hàm hỗ trợ escape HTML chống XSS
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
         
         
