@@ -2047,7 +2047,25 @@ function generateReport() {
                     let rowHtml = `<tr style="border-bottom: 1px solid #dee2e6;" class="hover:bg-slate-50 transition">`;
                     rowHtml += `<td style="padding: 10px; border: 1px solid #dee2e6; text-align: left; font-weight: 500;">${escapeHtml(comp.name)} <span style="font-size: 10px; color:#6c757d; display:block;">(${escapeHtml(comp.channel)})</span></td>`;
         
-                    const compPrices = pricesData[comp.id] || {};
+                    const compPrices = pricesData[comp.id] || {}; // Object chứa { 'YYYY-MM-DD': price, ... }
+        
+                    // Lấy toàn bộ danh sách các ngày có lưu giá trong DB của đối thủ này và sắp xếp tăng dần theo thời gian
+                    const allSavedDates = Object.keys(compPrices)
+                        .filter(d => compPrices[d] !== null && compPrices[d] !== '' && Number(compPrices[d]) > 0)
+                        .sort();
+        
+                    // Hàm phụ: Tìm giá hiệu lực (effective price) của một ngày bất kỳ (nếu ngày đó không có giá trực tiếp, lấy giá của ngày gần nhất trước đó trong DB)
+                    function getEffectivePrice(targetDateStr) {
+                        if (compPrices[targetDateStr] !== undefined && compPrices[targetDateStr] !== null && compPrices[targetDateStr] !== '' && Number(compPrices[targetDateStr]) > 0) {
+                            return Number(compPrices[targetDateStr]);
+                        }
+                        // Tìm ngày gần nhất trước targetDateStr có dữ liệu giá
+                        const validPastDates = allSavedDates.filter(d => d < targetDateStr);
+                        if (validPastDates.length > 0) {
+                            return Number(compPrices[validPastDates[validPastDates.length - 1]]);
+                        }
+                        return null;
+                    }
         
                     weekDays.forEach((dayObj, dayIndex) => {
                         const currentRawPrice = compPrices[dayObj.dateStr];
@@ -2059,37 +2077,34 @@ function generateReport() {
                             if (currentPrice > dailyMaxPrices[dayIndex]) dailyMaxPrices[dayIndex] = currentPrice;
                         }
         
-                        // --- TẦNG 1: So sánh giữa 2 lần update (Màu nền nhạt, Icon mũi tên SVG độc lập màu Xanh lá / Vàng / Đỏ) ---
-                        let trendIconHtml = '<span style="color: #b45309; font-weight: bold; font-size: 13px;">-</span>'; // Dấu trừ màu vàng đậm (không đổi)
-                        let trendClass = "bg-amber-50 text-amber-900 border border-amber-200"; // Nền nhạt
+                        // --- TẦNG 1: So sánh toàn cục với ngày có giá hiệu lực gần nhất trước đó trong DB ---
+                        let trendIconHtml = '<span style="color: #b45309; font-weight: bold; font-size: 13px;">-</span>';
+                        let trendClass = "bg-amber-50 text-amber-900 border border-amber-200"; 
                         let trendText = "0% (0 đ)";
         
                         if (currentPrice !== null && currentPrice > 0) {
                             const formattedCurrentPrice = currentPrice.toLocaleString('vi-VN') + " đ";
         
-                            const pastDates = Object.keys(compPrices).filter(d => d < dayObj.dateStr && compPrices[d] !== null && compPrices[d] !== '' && Number(compPrices[d]) > 0);
-                            
-                            if (pastDates.length > 0) {
-                                pastDates.sort().reverse();
-                                const lastUpdateDate = pastDates[0];
-                                const prevPrice = Number(compPrices[lastUpdateDate]);
+                            // Tìm ngày có lịch sử giá trước ngày hiện tại (kể cả trước tuần này)
+                            const priorDates = allSavedDates.filter(d => d < dayObj.dateStr);
+        
+                            if (priorDates.length > 0) {
+                                const lastActiveDate = priorDates[priorDates.length - 1];
+                                const prevPrice = Number(compPrices[lastActiveDate]);
         
                                 if (!isNaN(prevPrice) && prevPrice > 0) {
                                     const diffVal = currentPrice - prevPrice;
                                     const diffPct = (diffVal / prevPrice) * 100;
         
                                     if (diffVal > 0) {
-                                        // Tăng giá -> Icon Mũi tên Xanh lá hướng lên
                                         trendIconHtml = '<span style="color: #16a34a; font-weight: bold; font-size: 12px;">▲</span>';
                                         trendClass = "bg-emerald-50 text-emerald-900 border border-emerald-200";
                                         trendText = `+${diffPct.toFixed(1)}% (${formattedCurrentPrice})`;
                                     } else if (diffVal < 0) {
-                                        // Giảm giá -> Icon Mũi tên Đỏ hướng xuống
                                         trendIconHtml = '<span style="color: #dc2626; font-weight: bold; font-size: 12px;">▼</span>';
                                         trendClass = "bg-red-50 text-red-900 border border-red-200";
                                         trendText = `${diffPct.toFixed(1)}% (${formattedCurrentPrice})`;
                                     } else {
-                                        // Không đổi -> Icon Mũi tên Vàng đi ngang
                                         trendIconHtml = '<span style="color: #b45309; font-weight: bold; font-size: 13px;">-</span>';
                                         trendClass = "bg-amber-50 text-amber-900 border border-amber-200";
                                         trendText = `0% (${formattedCurrentPrice})`;
@@ -2098,11 +2113,37 @@ function generateReport() {
                                     trendText = `${formattedCurrentPrice}`;
                                 }
                             } else {
-                                trendText = `${formattedCurrentPrice}`;
+                                // Trường hợp đây là cột đầu tuần (hoặc ngày đầu tiên có dữ liệu trong DB), 
+                                // thử check lùi lại 1 ngày ngoài tuần để so sánh liên tục
+                                const d = new Date(dayObj.dateStr);
+                                d.setDate(d.getDate() - 1);
+                                const prevDayStr = d.toISOString().split('T')[0];
+                                const inheritedPrevPrice = getEffectivePrice(prevDayStr);
+        
+                                if (inheritedPrevPrice !== null && inheritedPrevPrice > 0) {
+                                    const diffVal = currentPrice - inheritedPrevPrice;
+                                    const diffPct = (diffVal / inheritedPrevPrice) * 100;
+        
+                                    if (diffVal > 0) {
+                                        trendIconHtml = '<span style="color: #16a34a; font-weight: bold; font-size: 12px;">▲</span>';
+                                        trendClass = "bg-emerald-50 text-emerald-900 border border-emerald-200";
+                                        trendText = `+${diffPct.toFixed(1)}% (${formattedCurrentPrice})`;
+                                    } else if (diffVal < 0) {
+                                        trendIconHtml = '<span style="color: #dc2626; font-weight: bold; font-size: 12px;">▼</span>';
+                                        trendClass = "bg-red-50 text-red-900 border border-red-200";
+                                        trendText = `${diffPct.toFixed(1)}% (${formattedCurrentPrice})`;
+                                    } else {
+                                        trendIconHtml = '<span style="color: #b45309; font-weight: bold; font-size: 13px;">-</span>';
+                                        trendClass = "bg-amber-50 text-amber-900 border border-amber-200";
+                                        trendText = `0% (${formattedCurrentPrice})`;
+                                    }
+                                } else {
+                                    trendText = `${formattedCurrentPrice}`;
+                                }
                             }
                         }
         
-                        // --- TẦNG 2: So sánh với Giá cơ bản của Villa (Nền tông đậm hơn một chút để phân cấp) ---
+                        // --- TẦNG 2: So sánh với Giá cơ bản của Villa ---
                         let villaDiffText = "So với cơ bản: -";
                         let villaClass = "bg-slate-100 text-slate-700";
         
@@ -2112,13 +2153,10 @@ function generateReport() {
                             villaDiffText = `So với giá cơ bản: ${sign}${diffPercent.toFixed(1)}%`;
         
                             if (diffPercent > 0) {
-                                // Cao hơn giá cơ bản -> Nền xanh lá đậm hơn
                                 villaClass = "bg-emerald-100 text-emerald-950 font-bold border border-emerald-300";
                             } else if (diffPercent < 0) {
-                                // Thấp hơn giá cơ bản -> Nền đỏ đậm hơn
                                 villaClass = "bg-red-100 text-red-950 font-bold border border-red-300";
                             } else {
-                                // Bằng giá cơ bản -> Nền vàng đậm hơn
                                 villaClass = "bg-amber-100 text-amber-950 font-bold border border-amber-300";
                             }
                         }
