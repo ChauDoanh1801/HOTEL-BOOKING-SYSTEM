@@ -1972,7 +1972,7 @@ function generateReport() {
         
         
         // ==========================================
-        // QUẢN LÝ MA TRẬN GIÁ 7 NGÀY & HÀNG MIN/MAX (BẢN CHUẨN GỌN GÀNG)
+        // QUẢN LÝ MA TRẬN GIÁ 7 NGÀY & HÀNG MIN/MAX (HOÀN THIỆN CUỐI CÙNG)
         // ==========================================
         
         function changeWeek(direction) {
@@ -2058,10 +2058,10 @@ function generateReport() {
                             if (currentPrice > dailyMaxPrices[dayIndex]) dailyMaxPrices[dayIndex] = currentPrice;
                         }
         
-                        // --- TẦNG 1: Tính xu hướng so với ngày hôm trước của chính đối thủ ---
+                        // --- TẦNG 1: So sánh với ngày hôm trước (Phân biệt màu rõ ràng: Tăng = Đỏ, Giảm = Xanh lá, Không đổi = Xám) ---
                         let trendIcon = "➡️";
-                        let trendClass = "cell-same text-slate-500 bg-slate-50";
-                        let diffText = "0% so với hôm trước";
+                        let trendClass = "bg-slate-100 text-slate-600";
+                        let trendText = "0% (0 đ)";
         
                         if (currentPrice !== null && currentPrice > 0) {
                             let prevDateStr = '';
@@ -2075,27 +2075,45 @@ function generateReport() {
         
                             const prevRawPrice = compPrices[prevDateStr];
                             const prevPrice = (prevRawPrice !== undefined && prevRawPrice !== null && prevRawPrice !== '') ? Number(prevRawPrice) : null;
+                            const formattedCurrentPrice = currentPrice.toLocaleString('vi-VN') + " đ";
         
                             if (prevPrice !== null && !isNaN(prevPrice) && prevPrice > 0) {
                                 const diffVal = currentPrice - prevPrice;
                                 const diffPct = (diffVal / prevPrice) * 100;
                                 if (diffVal > 0) {
                                     trendIcon = "⬆️";
-                                    trendClass = "cell-up text-red-600 bg-red-50 font-semibold";
-                                    diffText = `+${diffPct.toFixed(1)}% so với hôm trước`;
+                                    trendClass = "bg-red-50 text-red-700 font-bold border border-red-200"; // Tăng giá -> Nền đỏ, chữ đỏ đậm
+                                    trendText = `+${diffPct.toFixed(1)}% (${formattedCurrentPrice})`;
                                 } else if (diffVal < 0) {
                                     trendIcon = "⬇️";
-                                    trendClass = "cell-down text-emerald-600 bg-emerald-50 font-semibold";
-                                    diffText = `${diffPct.toFixed(1)}% so với hôm trước`;
+                                    trendClass = "bg-emerald-50 text-emerald-700 font-bold border border-emerald-200"; // Giảm giá -> Nền xanh lá, chữ xanh đậm
+                                    trendText = `${diffPct.toFixed(1)}% (${formattedCurrentPrice})`;
+                                } else {
+                                    trendIcon = "➡️";
+                                    trendClass = "bg-slate-100 text-slate-600 font-medium";
+                                    trendText = `0% (${formattedCurrentPrice})`;
                                 }
+                            } else {
+                                trendText = `${formattedCurrentPrice}`;
                             }
                         }
         
-                        // --- TẦNG 2: Tính % chênh lệch với Giá cơ bản của Villa ---
-                        let percentDiffText = "So với cơ bản: -";
+                        // --- TẦNG 2: So sánh với giá cơ bản của Villa (Cao hơn = Xanh, Thấp hơn = Đỏ, Bằng = Vàng) ---
+                        let villaDiffText = "So với cơ bản: -";
+                        let villaClass = "bg-slate-100 text-slate-500";
+        
                         if (currentPrice !== null && currentPrice > 0 && currentBasePrice > 0) {
                             const diffPercent = ((currentPrice - currentBasePrice) / currentBasePrice) * 100;
-                            percentDiffText = (diffPercent >= 0 ? "+" : "") + diffPercent.toFixed(1) + "% so với cơ bản";
+                            const sign = diffPercent > 0 ? "+" : "";
+                            villaDiffText = `So với giá cơ bản: ${sign}${diffPercent.toFixed(1)}%`;
+        
+                            if (diffPercent > 0) {
+                                villaClass = "bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200";
+                            } else if (diffPercent < 0) {
+                                villaClass = "bg-red-50 text-red-800 font-semibold border border-red-200";
+                            } else {
+                                villaClass = "bg-amber-50 text-amber-800 font-semibold border border-amber-200";
+                            }
                         }
         
                         const displayVal = currentPrice !== null && !isNaN(currentPrice) ? currentPrice.toLocaleString('vi-VN') : '';
@@ -2108,11 +2126,11 @@ function generateReport() {
                                     onchange="updateCompetitorPrice('${comp.id}', '${dayObj.dateStr}', this.value)"
                                     style="width: 90px; padding: 4px; text-align: center; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 4px; background: #fdfdfd;"
                                 />
-                                <div style="font-weight: bold; font-size: 11px; padding: 3px; border-radius: 3px;" class="${trendClass}">
-                                    ${trendIcon} ${diffText}
+                                <div style="font-size: 10px; padding: 3px 4px; border-radius: 4px; margin-bottom: 3px;" class="${trendClass}">
+                                    ${trendIcon} ${trendText}
                                 </div>
-                                <div class="sub-percent" style="font-size: 10px; margin-top: 2px; color: #475569; background: #f1f5f9; padding: 3px; border-radius: 3px;">
-                                    ${percentDiffText}
+                                <div style="font-size: 10px; padding: 3px 4px; border-radius: 4px;" class="${villaClass}">
+                                    ${villaDiffText}
                                 </div>
                             </td>
                         `;
@@ -2122,7 +2140,7 @@ function generateReport() {
                     tbody.innerHTML += rowHtml;
                 });
         
-                // 2. Hàng Min / Max ở đáy bảng
+                // Hàng Min / Max ở đáy bảng
                 let minMaxRowHtml = `<tr style="border-top: 2px solid #adb5bd; background: #e8f0fe;">`;
                 minMaxRowHtml += `<td style="padding: 10px; border: 1px solid #dee2e6; text-align: left; font-weight: bold; color: #1967d2; font-size: 12px;">📊 Thấp nhất / Cao nhất</td>`;
         
