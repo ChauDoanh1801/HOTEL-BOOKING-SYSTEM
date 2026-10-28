@@ -2060,7 +2060,7 @@ function generateReport() {
                         }
         
                         // --- TẦNG 1: So sánh giữa 2 lần update (Màu nền nhạt, Icon mũi tên SVG độc lập màu Xanh lá / Vàng / Đỏ) ---
-                        let trendIconHtml = '<span style="color: #ca8a04; font-weight: bold;">➡️</span>'; // Mặc định vàng (đi ngang)
+                        let trendIconHtml = '<span style="color: #b45309; font-weight: bold; font-size: 13px;">-</span>'; // Dấu trừ màu vàng đậm (không đổi)
                         let trendClass = "bg-amber-50 text-amber-900 border border-amber-200"; // Nền nhạt
                         let trendText = "0% (0 đ)";
         
@@ -2090,7 +2090,7 @@ function generateReport() {
                                         trendText = `${diffPct.toFixed(1)}% (${formattedCurrentPrice})`;
                                     } else {
                                         // Không đổi -> Icon Mũi tên Vàng đi ngang
-                                        trendIconHtml = '<span style="color: #ca8a04; font-weight: bold; font-size: 12px;">▶</span>';
+                                        trendIconHtml = '<span style="color: #b45309; font-weight: bold; font-size: 13px;">-</span>';
                                         trendClass = "bg-amber-50 text-amber-900 border border-amber-200";
                                         trendText = `0% (${formattedCurrentPrice})`;
                                     }
