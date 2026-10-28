@@ -716,7 +716,7 @@
         
         <div class="flex flex-col md:flex-row items-stretch md:items-center gap-4">
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1">Giá cơ bản (Dùng so sánh giá):</label>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Giá Cơ Bản (Dùng so sánh giá):</label>
             <div class="flex gap-2">
               <input type="number" id="basePriceInput" placeholder="Ví dụ: 2500000" class="p-2 text-sm border border-slate-300 rounded-lg w-44 focus:outline-none focus:ring-2 focus:ring-blue-500">
               <button onclick="saveBasePrice()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition">Lưu</button>
@@ -2106,7 +2106,7 @@ function generateReport() {
                         if (currentPrice !== null && currentPrice > 0 && currentBasePrice > 0) {
                             const diffPercent = ((currentPrice - currentBasePrice) / currentBasePrice) * 100;
                             const sign = diffPercent > 0 ? "+" : "";
-                            villaDiffText = `So với giá cơ bản: ${sign}${diffPercent.toFixed(1)}%`;
+                            villaDiffText = `${sign}${diffPercent.toFixed(1)}% so với Giá CB`;
         
                             if (diffPercent > 0) {
                                 villaClass = "bg-emerald-100 text-emerald-950 font-bold border border-emerald-300";
