@@ -2023,7 +2023,8 @@ function generateReport() {
             db.ref('hbs_data').once('value').then((snapshot) => {
                 const rootData = snapshot.val() || {};
                 const competitorsObj = rootData.competitors || {};
-                const pricesData = rootData.competitor_prices || {}; // Cấu trúc: pricesData[compId][dateStr] = price hoặc lịch sử
+                const pricesData = rootData.competitor_prices || {};
+                const historyData = rootData.competitor_price_history || {}; // Lấy lịch sử thay đổi giá
         
                 const competitorsData = Object.keys(competitorsObj).map(id => ({ 
                     id: id, 
@@ -2048,6 +2049,7 @@ function generateReport() {
                     rowHtml += `<td style="padding: 10px; border: 1px solid #dee2e6; text-align: left; font-weight: 500;">${escapeHtml(comp.name)} <span style="font-size: 10px; color:#6c757d; display:block;">(${escapeHtml(comp.channel)})</span></td>`;
         
                     const compPrices = pricesData[comp.id] || {}; 
+                    const compHistory = historyData[comp.id] || {}; // Lịch sử giá của đối thủ này
         
                     weekDays.forEach((dayObj, dayIndex) => {
                         const currentRawPrice = compPrices[dayObj.dateStr];
@@ -2059,7 +2061,7 @@ function generateReport() {
                             if (currentPrice > dailyMaxPrices[dayIndex]) dailyMaxPrices[dayIndex] = currentPrice;
                         }
         
-                        // --- TẦNG 1: So sánh giá của ngày này với chính lịch sử trước đó của ĐÚNG NGÀY NÀY ---
+                        // --- TẦNG 1: So sánh giá mới nhất với lần update gần nhất của ĐÚNG NGÀY ĐÓ ---
                         let trendIconHtml = '<span style="color: #b45309; font-weight: bold; font-size: 13px;">-</span>';
                         let trendClass = "bg-amber-50 text-amber-900 border border-amber-200"; 
                         let trendText = "0% (0 đ)";
@@ -2067,27 +2069,41 @@ function generateReport() {
                         if (currentPrice !== null && currentPrice > 0) {
                             const formattedCurrentPrice = currentPrice.toLocaleString('vi-VN') + " đ";
         
-                            // Kiểm tra xem Firebase của bạn có lưu lịch sử theo dạng mảng/node con cho từng ngày hay không.
-                            // Nếu `compPrices[dayObj.dateStr]` là một object chứa các lần update (ví dụ: { timestamp1: val1, timestamp2: val2 }) 
-                            // hoặc nếu bạn lưu đè trực tiếp giá trị theo ngày. 
-                            // Dưới đây là cách xử lý trường hợp hệ thống lưu lịch sử hoặc so sánh với giá trị trước đó được ghi nhận.
-                            
-                            const dayPriceNode = compPrices[dayObj.dateStr];
-                            
-                            // Giả sử nếu bạn lưu lịch sử dạng object các lần sửa: { '2026-06-10': { 'v1': 100, 'v2': 200 } } hoặc lưu trực tiếp.
-                            // Ở đây để bám sát ví dụ của bạn (lần 1, lần 2, lần 3), ta xét xem nếu DB lưu giá trị thô hay lịch sử. 
-                            // Vì thông thường Firebase `.set(price)` sẽ ghi đè giá trị của ngày đó, để so sánh được "lần update trước", 
-                            // hệ thống cần lưu lịch sử hoặc chúng ta giả định giá trị trước đó được lưu ở một cấu trúc lịch sử phụ. 
-                            // Tuy nhiên nếu hiện tại Firebase đang ghi đè trực tiếp (`competitor_prices/compId/dateStr = price`), 
-                            // ta cần lưu thêm lịch sử hoặc so sánh qua cơ chế snapshot. 
-                            
-                            // Để hỗ trợ chính xác logic "Lần 1, Lần 2, Lần 3" đúng ý bạn, mỗi lần gọi updateCompetitorPrice, 
-                            // chúng ta nên lưu vào một mảng lịch sử theo ngày (ví dụ: `competitor_price_history/compId/dateStr/[list]`).
-                            
-                            // Tạm thời với cấu trúc hiện tại, nếu chưa có mảng lịch sử, ta hiển thị mặc định khởi tạo:
-                            trendIconHtml = '<span style="color: #b45309; font-weight: bold; font-size: 13px;">-</span>';
-                            trendClass = "bg-amber-50 text-amber-900 border border-amber-200";
-                            trendText = `0% (${formattedCurrentPrice})`;
+                            // Lấy mảng lịch sử của riêng ngày này
+                            const dateHistory = compHistory[dayObj.dateStr] || [];
+                            let prevPrice = null;
+        
+                            if (Array.isArray(dateHistory) && dateHistory.length > 0) {
+                                // Lấy giá trị của lần update ngay trước đó (phần tử cuối cùng trong mảng lịch sử)
+                                prevPrice = Number(dateHistory[dateHistory.length - 1]);
+                            }
+        
+                            if (prevPrice !== null && !isNaN(prevPrice) && prevPrice > 0) {
+                                const diffVal = currentPrice - prevPrice;
+                                const diffPct = (diffVal / prevPrice) * 100;
+        
+                                if (diffVal > 0) {
+                                    // Tăng giá -> Mũi tên hướng lên màu xanh lá
+                                    trendIconHtml = '<span style="color: #16a34a; font-weight: bold; font-size: 12px;">▲</span>';
+                                    trendClass = "bg-emerald-50 text-emerald-900 border border-emerald-200";
+                                    trendText = `+${diffPct.toFixed(1)}% (${formattedCurrentPrice})`;
+                                } else if (diffVal < 0) {
+                                    // Giảm giá -> Mũi tên hướng xuống màu đỏ
+                                    trendIconHtml = '<span style="color: #dc2626; font-weight: bold; font-size: 12px;">▼</span>';
+                                    trendClass = "bg-red-50 text-red-900 border border-red-200";
+                                    trendText = `${diffPct.toFixed(1)}% (${formattedCurrentPrice})`;
+                                } else {
+                                    // Không đổi so với lần update trước -> Dấu trừ màu vàng đậm
+                                    trendIconHtml = '<span style="color: #b45309; font-weight: bold; font-size: 13px;">-</span>';
+                                    trendClass = "bg-amber-50 text-amber-900 border border-amber-200";
+                                    trendText = `0% (${formattedCurrentPrice})`;
+                                }
+                            } else {
+                                // Lần đầu tiên có dữ liệu hoặc không có lịch sử thay đổi trước đó -> đi ngang (-)
+                                trendIconHtml = '<span style="color: #b45309; font-weight: bold; font-size: 13px;">-</span>';
+                                trendClass = "bg-amber-50 text-amber-900 border border-amber-200";
+                                trendText = `0% (${formattedCurrentPrice})`;
+                            }
                         }
         
                         // --- TẦNG 2: So sánh với Giá cơ bản của Villa (Nền đậm hơn để phân cấp) ---
@@ -2157,16 +2173,36 @@ function generateReport() {
         // Hàm cập nhật giá đối thủ theo ngày lên Firebase Realtime Database
         function updateCompetitorPrice(competitorId, dateStr, rawValue) {
             const cleanVal = rawValue.replace(/\./g, '').trim();
-            const price = cleanVal === '' ? null : Number(cleanVal);
+            const newPrice = cleanVal === '' ? null : Number(cleanVal);
         
-            if (price !== null && isNaN(price)) {
+            if (newPrice !== null && isNaN(newPrice)) {
                 alert('Vui lòng nhập định dạng số hợp lệ!');
                 renderPriceMatrix();
                 return;
             }
         
-            db.ref(`hbs_data/competitor_prices/${competitorId}/${dateStr}`).set(price).then(() => {
-                // Tự động load lại ma trận để cập nhật tức thì phần trăm chênh lệch và Min/Max
+            const priceRef = db.ref(`hbs_data/competitor_prices/${competitorId}/${dateStr}`);
+            const historyRef = db.ref(`hbs_data/competitor_price_history/${competitorId}/${dateStr}`);
+        
+            // Lấy giá hiện tại trong DB trước khi ghi đè để đưa vào lịch sử so sánh
+            priceRef.once('value').then(snapshot => {
+                const oldPrice = snapshot.val();
+                
+                let updatePromise = Promise.resolve();
+                // Nếu có giá cũ khác với giá mới, lưu giá cũ vào mảng lịch sử
+                if (oldPrice !== null && oldPrice !== undefined && oldPrice !== '' && oldPrice !== newPrice) {
+                    updatePromise = historyRef.once('value').then(histSnap => {
+                        let history = histSnap.val() || [];
+                        if (!Array.isArray(history)) history = [history];
+                        history.push(oldPrice); // Thêm giá cũ vào lịch sử của ngày này
+                        return historyRef.set(history);
+                    });
+                }
+        
+                return updatePromise.then(() => {
+                    return priceRef.set(newPrice);
+                });
+            }).then(() => {
                 renderPriceMatrix();
             }).catch(error => {
                 alert('Không thể lưu giá: ' + error.message);
