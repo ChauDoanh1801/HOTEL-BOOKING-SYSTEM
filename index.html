@@ -1895,11 +1895,15 @@ function generateReport() {
         let currentBasePrice = 0;
         let currentWeekOffset = 0; // 0 là tuần hiện tại, -1 là tuần trước, 1 là tuần sau
         
-        // 1. Khởi động tính năng phân tích (gọi hàm này khi người dùng chuyển sang tab Phân tích)
+        // 1. Khởi động tính năng phân tích (Đã tối ưu thứ tự tải dữ liệu)
         function initAnalysisFeature() {
             loadCompetitorsFromFirebase();
-            loadBasePriceFromFirebase();
-            renderPriceMatrix();
+            // Tải giá cơ bản trước, sau đó mới render ma trận để đảm bảo có đủ basePrice tính toán ngay từ click đầu tiên
+            loadBasePriceFromFirebase(); 
+            // Thêm độ trễ cực ngắn (100ms) để chắc chắn Firebase đã đổ xong dữ liệu cơ bản vào input
+            setTimeout(() => {
+                renderPriceMatrix();
+            }, 100);
             initCompetitorsListener();
         }
         
