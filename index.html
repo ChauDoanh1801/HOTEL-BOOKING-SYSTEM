@@ -2163,7 +2163,7 @@ function generateReport() {
 
         
         // Hàm cập nhật giá đối thủ theo ngày lên Firebase Realtime Database
-        (competitorId, dateStr, rawValue) {
+        function updateCompetitorPrice(competitorId, dateStr, rawValue) {
             const cleanVal = rawValue.replace(/\./g, '').trim();
             const newPrice = cleanVal === '' ? null : Number(cleanVal);
         
