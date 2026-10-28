@@ -2047,25 +2047,12 @@ function generateReport() {
                     let rowHtml = `<tr style="border-bottom: 1px solid #dee2e6;" class="hover:bg-slate-50 transition">`;
                     rowHtml += `<td style="padding: 10px; border: 1px solid #dee2e6; text-align: left; font-weight: 500;">${escapeHtml(comp.name)} <span style="font-size: 10px; color:#6c757d; display:block;">(${escapeHtml(comp.channel)})</span></td>`;
         
-                    const compPrices = pricesData[comp.id] || {}; // Object chứa { 'YYYY-MM-DD': price, ... }
+                    const compPrices = pricesData[comp.id] || {}; 
         
-                    // Lấy toàn bộ danh sách các ngày có lưu giá trong DB của đối thủ này và sắp xếp tăng dần theo thời gian
+                    // Lấy toàn bộ danh sách các ngày có lưu giá trong DB của đối thủ này, sắp xếp tăng dần
                     const allSavedDates = Object.keys(compPrices)
                         .filter(d => compPrices[d] !== null && compPrices[d] !== '' && Number(compPrices[d]) > 0)
                         .sort();
-        
-                    // Hàm phụ: Tìm giá hiệu lực (effective price) của một ngày bất kỳ (nếu ngày đó không có giá trực tiếp, lấy giá của ngày gần nhất trước đó trong DB)
-                    function getEffectivePrice(targetDateStr) {
-                        if (compPrices[targetDateStr] !== undefined && compPrices[targetDateStr] !== null && compPrices[targetDateStr] !== '' && Number(compPrices[targetDateStr]) > 0) {
-                            return Number(compPrices[targetDateStr]);
-                        }
-                        // Tìm ngày gần nhất trước targetDateStr có dữ liệu giá
-                        const validPastDates = allSavedDates.filter(d => d < targetDateStr);
-                        if (validPastDates.length > 0) {
-                            return Number(compPrices[validPastDates[validPastDates.length - 1]]);
-                        }
-                        return null;
-                    }
         
                     weekDays.forEach((dayObj, dayIndex) => {
                         const currentRawPrice = compPrices[dayObj.dateStr];
@@ -2077,7 +2064,7 @@ function generateReport() {
                             if (currentPrice > dailyMaxPrices[dayIndex]) dailyMaxPrices[dayIndex] = currentPrice;
                         }
         
-                        // --- TẦNG 1: So sánh toàn cục với ngày có giá hiệu lực gần nhất trước đó trong DB ---
+                        // --- TẦNG 1: So sánh toàn cục với ngày có giá gần nhất trước đó trong DB ---
                         let trendIconHtml = '<span style="color: #b45309; font-weight: bold; font-size: 13px;">-</span>';
                         let trendClass = "bg-amber-50 text-amber-900 border border-amber-200"; 
                         let trendText = "0% (0 đ)";
@@ -2085,10 +2072,11 @@ function generateReport() {
                         if (currentPrice !== null && currentPrice > 0) {
                             const formattedCurrentPrice = currentPrice.toLocaleString('vi-VN') + " đ";
         
-                            // Tìm ngày có lịch sử giá trước ngày hiện tại (kể cả trước tuần này)
+                            // Tìm tất cả các ngày trong DB có mốc thời gian TRƯỚC ngày hiện tại (`dayObj.dateStr`)
                             const priorDates = allSavedDates.filter(d => d < dayObj.dateStr);
         
                             if (priorDates.length > 0) {
+                                // Lấy ngày gần ngay trước đó nhất trong lịch sử DB
                                 const lastActiveDate = priorDates[priorDates.length - 1];
                                 const prevPrice = Number(compPrices[lastActiveDate]);
         
@@ -2113,33 +2101,10 @@ function generateReport() {
                                     trendText = `${formattedCurrentPrice}`;
                                 }
                             } else {
-                                // Trường hợp đây là cột đầu tuần (hoặc ngày đầu tiên có dữ liệu trong DB), 
-                                // thử check lùi lại 1 ngày ngoài tuần để so sánh liên tục
-                                const d = new Date(dayObj.dateStr);
-                                d.setDate(d.getDate() - 1);
-                                const prevDayStr = d.toISOString().split('T')[0];
-                                const inheritedPrevPrice = getEffectivePrice(prevDayStr);
-        
-                                if (inheritedPrevPrice !== null && inheritedPrevPrice > 0) {
-                                    const diffVal = currentPrice - inheritedPrevPrice;
-                                    const diffPct = (diffVal / inheritedPrevPrice) * 100;
-        
-                                    if (diffVal > 0) {
-                                        trendIconHtml = '<span style="color: #16a34a; font-weight: bold; font-size: 12px;">▲</span>';
-                                        trendClass = "bg-emerald-50 text-emerald-900 border border-emerald-200";
-                                        trendText = `+${diffPct.toFixed(1)}% (${formattedCurrentPrice})`;
-                                    } else if (diffVal < 0) {
-                                        trendIconHtml = '<span style="color: #dc2626; font-weight: bold; font-size: 12px;">▼</span>';
-                                        trendClass = "bg-red-50 text-red-900 border border-red-200";
-                                        trendText = `${diffPct.toFixed(1)}% (${formattedCurrentPrice})`;
-                                    } else {
-                                        trendIconHtml = '<span style="color: #b45309; font-weight: bold; font-size: 13px;">-</span>';
-                                        trendClass = "bg-amber-50 text-amber-900 border border-amber-200";
-                                        trendText = `0% (${formattedCurrentPrice})`;
-                                    }
-                                } else {
-                                    trendText = `${formattedCurrentPrice}`;
-                                }
+                                // Nếu hoàn toàn không tìm thấy ngày nào trước đó trong DB, đây là mốc cơ sở đầu tiên -> hiển thị giá gốc kèm dấu -
+                                trendIconHtml = '<span style="color: #b45309; font-weight: bold; font-size: 13px;">-</span>';
+                                trendClass = "bg-amber-50 text-amber-900 border border-amber-200";
+                                trendText = `0% (${formattedCurrentPrice})`;
                             }
                         }
         
